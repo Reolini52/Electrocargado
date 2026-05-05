@@ -5,8 +5,8 @@ public class ChargeAbsorber : MonoBehaviour
 {
     [Header("Absorb Settings")]
     public float absorbRange = 8f;
-    public float absorbRate = 0.8f;
-    public float expelRate = 0.8f;
+    public float absorbRate = 0.6f;
+    public float expelRate = 0.6f;
 
     private ChargeResource chargeResource;
     private Camera cam;
@@ -20,12 +20,8 @@ public class ChargeAbsorber : MonoBehaviour
 
     void Update()
     {
-        // Q toggles absorb mode
         if (Keyboard.current.qKey.wasPressedThisFrame)
-        {
             absorbModeActive = !absorbModeActive;
-            Debug.Log($"Absorb mode: {absorbModeActive}");
-        }
 
         if (!absorbModeActive) return;
 
@@ -42,7 +38,10 @@ public class ChargeAbsorber : MonoBehaviour
 
     void TryAbsorb(Vector2 targetPos)
     {
-        Collider2D hit = Physics2D.OverlapCircle(targetPos, 1.2f);
+        Collider2D hit = Physics2D.OverlapCircle(
+            targetPos, 2.5f,
+            LayerMask.GetMask("ChargedObjects")
+        );
         if (hit == null || hit.gameObject == gameObject) return;
 
         float dist = Vector2.Distance(transform.position, hit.transform.position);
@@ -51,16 +50,20 @@ public class ChargeAbsorber : MonoBehaviour
         ChargedObject fixedObj = hit.GetComponent<ChargedObject>();
         DynamicChargedObject dynObj = hit.GetComponent<DynamicChargedObject>();
 
-        if (fixedObj != null)
+        float resistance = 1f - Mathf.Abs(chargeResource.GetCharge());
+        float amount = absorbRate * resistance * Time.deltaTime;
+
+        if (fixedObj != null && fixedObj.isConductor)
         {
-            float amount = absorbRate * Time.deltaTime;
-            chargeResource.AddCharge(fixedObj.charge > 0 ? amount : -amount);
+            float chargeSign = Mathf.Sign(fixedObj.charge);
+            chargeResource.AddCharge(chargeSign * amount);
         }
-        else if (dynObj != null)
+        else if (dynObj != null && dynObj.isConductor)
         {
-            float amount = absorbRate * Time.deltaTime;
-            chargeResource.AddCharge(dynObj.charge > 0 ? amount : -amount);
-            dynObj.charge = Mathf.MoveTowards(dynObj.charge, 0f, amount);
+            float chargeSign = Mathf.Sign(dynObj.charge);
+            chargeResource.AddCharge(chargeSign * amount);
+            dynObj.charge = Mathf.MoveTowards(dynObj.charge, 0f, amount * 0.4f);
+            dynObj.UpdateVisual();
         }
     }
 
@@ -68,18 +71,31 @@ public class ChargeAbsorber : MonoBehaviour
     {
         if (chargeResource.IsNeutral()) return;
 
-        Collider2D hit = Physics2D.OverlapCircle(targetPos, 1.2f);
+        Collider2D hit = Physics2D.OverlapCircle(
+            targetPos, 2.5f,
+            LayerMask.GetMask("ChargedObjects")
+        );
         if (hit == null || hit.gameObject == gameObject) return;
 
         float dist = Vector2.Distance(transform.position, hit.transform.position);
         if (dist > absorbRange) return;
 
+        float currentCharge = chargeResource.GetCharge();
+        float amount = expelRate * Time.deltaTime;
+
         ChargedObject fixedObj = hit.GetComponent<ChargedObject>();
-        if (fixedObj != null)
+        DynamicChargedObject dynObj = hit.GetComponent<DynamicChargedObject>();
+
+        if (fixedObj != null && !fixedObj.isFixedSource)
         {
-            float amount = expelRate * Time.deltaTime;
-            float currentCharge = chargeResource.GetCharge();
             fixedObj.charge += currentCharge > 0 ? amount : -amount;
+            fixedObj.UpdateVisual();
+            chargeResource.AddCharge(currentCharge > 0 ? -amount : amount);
+        }
+        else if (dynObj != null)
+        {
+            dynObj.charge += currentCharge > 0 ? amount : -amount;
+            dynObj.UpdateVisual();
             chargeResource.AddCharge(currentCharge > 0 ? -amount : amount);
         }
     }

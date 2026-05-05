@@ -7,6 +7,11 @@ public class ChargedObject : MonoBehaviour
     public float effectRadius = 10f;
     public float forceStrength = 50f;
 
+    [Header("Conduction")]
+    public bool isConductor = true;
+    public float conductionRate = 0.3f;
+    public bool isFixedSource = true;
+
     [Header("Visual")]
     public Color positiveColor = new Color(0.3f, 0.6f, 1f);
     public Color negativeColor = new Color(1f, 0.3f, 0.3f);
@@ -19,31 +24,35 @@ public class ChargedObject : MonoBehaviour
     {
         sr = GetComponent<SpriteRenderer>();
         player = Object.FindAnyObjectByType<ChargeResource>();
-        playerRb = player.GetComponent<Rigidbody2D>();
+        if (player != null)
+            playerRb = player.GetComponent<Rigidbody2D>();
         UpdateVisual();
     }
 
     void FixedUpdate()
     {
         if (player == null || playerRb == null) return;
-        if (player.IsNeutral()) return;
 
         float dist = Vector2.Distance(transform.position, player.transform.position);
-        if (dist > effectRadius || dist < 0.1f) return;
 
-        // Coulomb force
-        float normalizedDist = dist / effectRadius;
-        float forceMag = forceStrength * (1f - normalizedDist) / (dist * dist + 0.5f);
-        forceMag = Mathf.Min(forceMag, 25f);
+        if (!player.IsNeutral() && dist < effectRadius && dist > 0.1f)
+        {
+            float normalizedDist = dist / effectRadius;
+            float forceMag = forceStrength * (1f - normalizedDist)
+                / (dist * dist + 0.5f);
+            forceMag = Mathf.Min(forceMag, 25f);
 
-        Vector2 dirToPlayer = (player.transform.position - transform.position).normalized;
-        float chargeProduct = charge * player.GetCharge();
+            Vector2 dirToPlayer = (player.transform.position
+                - transform.position).normalized;
+            float chargeProduct = charge * player.GetCharge();
 
-        // Same = repel, opposite = attract
-        if (chargeProduct > 0)
-            dirToPlayer *= -1;
+            if (chargeProduct > 0)
+                dirToPlayer *= -1;
 
-        playerRb.AddForce(dirToPlayer * forceMag);
+            playerRb.AddForce(dirToPlayer * forceMag);
+        }
+
+       
     }
 
     public void UpdateVisual()
