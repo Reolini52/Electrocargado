@@ -2,54 +2,53 @@ using UnityEngine;
 
 public class ChargedObject : MonoBehaviour
 {
-    [Header("Charge Settings")]
-    public float charge = 1f; // positive or negative
-    public float forceStrength = 10f;
-    public float effectRadius = 5f;
-    public bool alwaysActive = true;
+    [Header("Charge")]
+    public float charge = 1f;
+    public float effectRadius = 10f;
+    public float forceStrength = 50f;
 
-    private PlayerController player;
+    [Header("Visual")]
+    public Color positiveColor = new Color(0.3f, 0.6f, 1f);
+    public Color negativeColor = new Color(1f, 0.3f, 0.3f);
+
     private SpriteRenderer sr;
-
-    public Color positiveColor = new Color(0.3f, 0.6f, 1f, 0.8f);
-    public Color negativeColor = new Color(1f, 0.3f, 0.3f, 0.8f);
+    private ChargeResource player;
+    private Rigidbody2D playerRb;
 
     void Start()
     {
-        player = FindFirstObjectByType<PlayerController>();
         sr = GetComponent<SpriteRenderer>();
+        player = Object.FindAnyObjectByType<ChargeResource>();
+        playerRb = player.GetComponent<Rigidbody2D>();
         UpdateVisual();
     }
 
     void FixedUpdate()
     {
-        if (player == null) return;
+        if (player == null || playerRb == null) return;
+        if (player.IsNeutral()) return;
 
-        float distance = Vector2.Distance(transform.position, player.transform.position);
-        if (distance > effectRadius || distance < 0.1f) return;
+        float dist = Vector2.Distance(transform.position, player.transform.position);
+        if (dist > effectRadius || dist < 0.1f) return;
 
-        // Normalized distance 0-1 for smoother falloff
-        float normalizedDist = distance / effectRadius;
-        float forceMagnitude = forceStrength * (1f - normalizedDist) / (distance * distance + 0.5f);
-        forceMagnitude = Mathf.Min(forceMagnitude, 30f);
+        // Coulomb force
+        float normalizedDist = dist / effectRadius;
+        float forceMag = forceStrength * (1f - normalizedDist) / (dist * dist + 0.5f);
+        forceMag = Mathf.Min(forceMag, 25f);
+
+        Vector2 dirToPlayer = (player.transform.position - transform.position).normalized;
         float chargeProduct = charge * player.GetCharge();
-        Vector2 direction = (player.transform.position - transform.position).normalized;
 
-        if (chargeProduct < 0)
-            direction *= -1;
+        // Same = repel, opposite = attract
+        if (chargeProduct > 0)
+            dirToPlayer *= -1;
 
-        player.GetComponent<Rigidbody2D>().AddForce(direction * forceMagnitude);
+        playerRb.AddForce(dirToPlayer * forceMag);
     }
 
-    void UpdateVisual()
+    public void UpdateVisual()
     {
         if (sr != null)
             sr.color = charge > 0 ? positiveColor : negativeColor;
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = charge > 0 ? Color.blue : Color.red;
-        Gizmos.DrawWireSphere(transform.position, effectRadius);
     }
 }
