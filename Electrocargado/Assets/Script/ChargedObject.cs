@@ -7,9 +7,8 @@ public class ChargedObject : MonoBehaviour
     public float effectRadius = 10f;
     public float forceStrength = 50f;
 
-    [Header("Conduction")]
+    [Header("Settings")]
     public bool isConductor = true;
-    public float conductionRate = 0.3f;
     public bool isFixedSource = true;
 
     [Header("Visual")]
@@ -20,39 +19,59 @@ public class ChargedObject : MonoBehaviour
     private ChargeResource player;
     private Rigidbody2D playerRb;
 
-    void Start()
+    void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
-        player = Object.FindAnyObjectByType<ChargeResource>();
-        if (player != null)
-            playerRb = player.GetComponent<Rigidbody2D>();
         UpdateVisual();
+    }
+
+    void Update()
+    {
+        if (player == null)
+        {
+            player = Object.FindAnyObjectByType<ChargeResource>();
+            if (player != null)
+                playerRb = player.GetComponent<Rigidbody2D>();
+        }
     }
 
     void FixedUpdate()
     {
         if (player == null || playerRb == null) return;
 
-        float dist = Vector2.Distance(transform.position, player.transform.position);
+        // ALWAYS check distance to player directly
+        // No cursor needed — this is passive physics
+        float dist = Vector2.Distance(
+            transform.position,
+            player.transform.position
+        );
 
-        if (!player.IsNeutral() && dist < effectRadius && dist > 0.1f)
+        if (dist > effectRadius || dist < 0.1f) return;
+        if (player.IsNeutral()) return;
+
+        float normalizedDist = dist / effectRadius;
+        float forceMag = forceStrength * (1f - normalizedDist)
+            / (dist * dist + 0.5f);
+        forceMag = Mathf.Clamp(forceMag, 2f, 30f);
+
+        // Direction FROM object TO player
+        Vector2 dirToPlayer = (player.transform.position
+            - transform.position).normalized;
+
+        float chargeProduct = charge * player.GetCharge();
+
+        // SAME sign = positive product = REPEL = push player away
+        // DIFFERENT sign = negative product = ATTRACT = pull player toward
+        if (chargeProduct > 0)
         {
-            float normalizedDist = dist / effectRadius;
-            float forceMag = forceStrength * (1f - normalizedDist)
-                / (dist * dist + 0.5f);
-            forceMag = Mathf.Min(forceMag, 25f);
-
-            Vector2 dirToPlayer = (player.transform.position
-                - transform.position).normalized;
-            float chargeProduct = charge * player.GetCharge();
-
-            if (chargeProduct > 0)
-                dirToPlayer *= -1;
-
+            // Same charge = REPEL = push player AWAY
             playerRb.AddForce(dirToPlayer * forceMag);
         }
-
-       
+        else
+        {
+            // Opposite charge = ATTRACT = pull player TOWARD
+            playerRb.AddForce(-dirToPlayer * forceMag);
+        }
     }
 
     public void UpdateVisual()
