@@ -6,7 +6,7 @@ public class ChargeResource : MonoBehaviour
     [Header("Charge")]
     [Range(-1f, 1f)]
     public float charge = 0f;
-    public float dissipationRate = 0.08f;
+    public float dissipationRate = 0.02f;
 
     [Header("Bubble")]
     public bool bubbleActive = false;

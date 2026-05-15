@@ -91,30 +91,39 @@ public class EnemyCorruptor : MonoBehaviour
 
     void Chase()
     {
-        // Check edge before moving
         bool edgeAhead = CheckEdgeAhead();
+        Vector2 dirToPlayer = (player.position - transform.position).normalized;
+
+        if (!isAttracted && !playerCharge.IsNeutral())
+        {
+            // Same charge = FLEE
+            Vector2 dirAway = -dirToPlayer;
+            bool edgeBehind = CheckEdgeAhead();
+
+            if (!edgeBehind)
+            {
+                rb.linearVelocity = new Vector2(
+                    dirAway.x * moveSpeed,
+                    rb.linearVelocity.y
+                );
+                isFacingRight = dirAway.x > 0;
+            }
+            else
+            {
+                rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            }
+            return;
+        }
+
+        // Attracted or neutral = chase
         if (edgeAhead)
         {
-            // Stop at edge
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
 
-        Vector2 dirToPlayer = (player.position - transform.position).normalized;
-
-        // Speed depends on charge interaction
-        float speed = moveSpeed;
-        if (isAttracted)
-            speed *= attractedSpeedMultiplier; // faster when attracted
-        else
-            speed *= 0.6f; // slower when repelled but still chases
-
-        rb.linearVelocity = new Vector2(
-            dirToPlayer.x * speed,
-            rb.linearVelocity.y
-        );
-
-        // Update facing
+        float speed = isAttracted ? moveSpeed * attractedSpeedMultiplier : moveSpeed;
+        rb.linearVelocity = new Vector2(dirToPlayer.x * speed, rb.linearVelocity.y);
         isFacingRight = dirToPlayer.x > 0;
     }
 
