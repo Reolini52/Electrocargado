@@ -41,10 +41,8 @@ public class ActionFeedback : MonoBehaviour
         }
         else if (!chargeResource.IsNeutral())
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
-                SetAction("BENDING →", new Color(1f, 1f, 0f));
-            else if (Mouse.current.rightButton.wasPressedThisFrame)
-                SetAction("PUSHING →", new Color(1f, 0.4f, 0.1f));
+            if (Mouse.current.leftButton.isPressed)
+                SetAction("GRAPPLING →", new Color(1f, 1f, 0f));
             else if (actionTimer <= 0)
                 SetAction(chargeResource.IsPositive() ? "CHARGED +" : "CHARGED -",
                     chargeResource.IsPositive() ?
@@ -125,7 +123,7 @@ public class ActionFeedback : MonoBehaviour
             new Color(1f, 1f, 0f, 0.8f);
         actionStyle.fontSize = 11;
         GUI.Label(new Rect(barX, barY + barHeight + 18, barWidth, 16),
-            absorber.IsAbsorbModeActive() ? "[Q] ABSORB MODE ON" : "[Q] BEND MODE",
-            actionStyle);
+        absorber.IsAbsorbModeActive() ? "[Q] ABSORB MODE ON" : "[Q] ABSORB / [LMB] GRAPPLE",
+        actionStyle);
     }
 }

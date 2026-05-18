@@ -56,12 +56,14 @@ public class EnemyEmisor : MonoBehaviour
         if (playerCharge.IsNeutral()) return;
 
         float dist = Vector2.Distance(transform.position, player.position);
+        Debug.Log($"Emisor dist:{dist} radius:{chargeEffectRadius} force:{chargeForceStrength} playerCharge:{playerCharge.GetCharge()}");
         if (dist > chargeEffectRadius || dist < 0.1f) return;
 
         float normalizedDist = dist / chargeEffectRadius;
-        float forceMag = chargeForceStrength * (1f - normalizedDist)
-            / (dist * dist + 0.5f);
-        forceMag = Mathf.Clamp(forceMag, 1f, 20f);
+        // Simpler stronger force
+        float forceMag = chargeForceStrength * playerCharge.GetCharge()
+            * charge / (dist + 0.5f);
+        forceMag = Mathf.Clamp(forceMag, 0f, 50f);
 
         // Direction FROM player TO emisor
         Vector2 dirAwayFromPlayer = (transform.position - player.position).normalized;
