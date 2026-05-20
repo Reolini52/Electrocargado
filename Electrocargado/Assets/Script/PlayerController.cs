@@ -66,15 +66,21 @@ public class PlayerController : MonoBehaviour
 
     void HandleJump()
     {
-        // Reset jumps when landing
         if (isGrounded && !wasGrounded)
             jumpsRemaining = maxJumps;
 
         if (Keyboard.current.spaceKey.wasPressedThisFrame && jumpsRemaining > 0)
         {
-            // Only allow second jump if actually in air
             if (!isGrounded && jumpsRemaining == maxJumps)
                 return;
+
+            // Second jump requires charge
+            if (!isGrounded && jumpsRemaining < maxJumps)
+            {
+                ChargeResource cr = GetComponent<ChargeResource>();
+                if (cr == null || cr.IsNeutral())
+                    return; // cant double jump without charge
+            }
 
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             jumpsRemaining--;
