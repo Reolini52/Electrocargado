@@ -25,13 +25,8 @@ public class ActionFeedback : MonoBehaviour
         if (actionTimer > 0)
             actionTimer -= Time.deltaTime;
 
-        // Detect current mode for persistent label
         if (absorber.IsAbsorbModeActive())
         {
-            Vector2 mouseWorld = cam.ScreenToWorldPoint(
-                Mouse.current.position.ReadValue()
-            );
-
             if (Mouse.current.leftButton.isPressed)
                 SetAction("ABSORBING", new Color(0f, 1f, 0.5f));
             else if (Mouse.current.rightButton.isPressed)
@@ -76,29 +71,42 @@ public class ActionFeedback : MonoBehaviour
             actionStyle.alignment = TextAnchor.MiddleCenter;
         }
 
-        // Show charge meter
-        float charge = chargeResource.GetCharge();
         float barWidth = 200f;
         float barHeight = 16f;
         float barX = Screen.width / 2f - barWidth / 2f;
         float barY = Screen.height - 60f;
+
+        // Grace timer warning
+        if (chargeResource != null && chargeResource.IsInGrace())
+        {
+            float grace = chargeResource.GetGraceTimer();
+            GUI.color = new Color(1f, 0.8f, 0f, 0.9f);
+            GUIStyle warningStyle = new GUIStyle(GUI.skin.label);
+            warningStyle.fontSize = 14;
+            warningStyle.fontStyle = FontStyle.Bold;
+            warningStyle.alignment = TextAnchor.MiddleCenter;
+            GUI.Label(new Rect(barX, barY - 58, barWidth, 20),
+                $"RECHARGE NOW! {grace:F1}s", warningStyle);
+        }
 
         // Background
         GUI.color = new Color(0, 0, 0, 0.6f);
         GUI.DrawTexture(new Rect(barX - 5, barY - 5, barWidth + 10, barHeight + 10),
             Texture2D.whiteTexture);
 
-        // Negative side (left)
+        // Negative side
         GUI.color = new Color(1f, 0.3f, 0.3f, 0.8f);
-        float negWidth = charge < 0 ? Mathf.Abs(charge) * (barWidth / 2f) : 0f;
-        GUI.DrawTexture(new Rect(barX + barWidth / 2f - negWidth, barY, negWidth, barHeight),
-            Texture2D.whiteTexture);
+        float negWidth = chargeResource.GetCharge() < 0 ?
+            Mathf.Abs(chargeResource.GetCharge()) * (barWidth / 2f) : 0f;
+        GUI.DrawTexture(new Rect(barX + barWidth / 2f - negWidth, barY,
+            negWidth, barHeight), Texture2D.whiteTexture);
 
-        // Positive side (right)
+        // Positive side
         GUI.color = new Color(0.3f, 0.6f, 1f, 0.8f);
-        float posWidth = charge > 0 ? charge * (barWidth / 2f) : 0f;
-        GUI.DrawTexture(new Rect(barX + barWidth / 2f, barY, posWidth, barHeight),
-            Texture2D.whiteTexture);
+        float posWidth = chargeResource.GetCharge() > 0 ?
+            chargeResource.GetCharge() * (barWidth / 2f) : 0f;
+        GUI.DrawTexture(new Rect(barX + barWidth / 2f, barY,
+            posWidth, barHeight), Texture2D.whiteTexture);
 
         // Center line
         GUI.color = Color.white;
@@ -108,14 +116,18 @@ public class ActionFeedback : MonoBehaviour
         // Labels
         GUI.color = new Color(1f, 1f, 1f, 0.6f);
         actionStyle.fontSize = 11;
-        GUI.Label(new Rect(barX, barY - 18, barWidth, 20), "— CHARGE —", actionStyle);
-        GUI.Label(new Rect(barX, barY + barHeight + 2, 30, 16), "-", actionStyle);
-        GUI.Label(new Rect(barX + barWidth - 30, barY + barHeight + 2, 30, 16), "+", actionStyle);
+        GUI.Label(new Rect(barX, barY - 18, barWidth, 20),
+            "— CHARGE —", actionStyle);
+        GUI.Label(new Rect(barX, barY + barHeight + 2, 30, 16),
+            "-", actionStyle);
+        GUI.Label(new Rect(barX + barWidth - 30, barY + barHeight + 2, 30, 16),
+            "+", actionStyle);
 
-        // Action text above bar
+        // Action text
         GUI.color = actionColor;
         actionStyle.fontSize = 15;
-        GUI.Label(new Rect(barX, barY - 38, barWidth, 24), currentAction, actionStyle);
+        GUI.Label(new Rect(barX, barY - 38, barWidth, 24),
+            currentAction, actionStyle);
 
         // Mode indicator
         GUI.color = absorber.IsAbsorbModeActive() ?
@@ -123,7 +135,19 @@ public class ActionFeedback : MonoBehaviour
             new Color(1f, 1f, 0f, 0.8f);
         actionStyle.fontSize = 11;
         GUI.Label(new Rect(barX, barY + barHeight + 18, barWidth, 16),
-        absorber.IsAbsorbModeActive() ? "[Q] ABSORB MODE ON" : "[Q] ABSORB / [LMB] GRAPPLE",
-        actionStyle);
+            absorber.IsAbsorbModeActive() ?
+            "[Q] ABSORB MODE ON" : "[Q] ABSORB / [LMB] GRAPPLE",
+            actionStyle);
+
+        // Jump counter
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null)
+        {
+            GUI.color = new Color(1f, 1f, 1f, 0.6f);
+            actionStyle.fontSize = 11;
+            GUI.Label(new Rect(barX, barY + barHeight + 34, barWidth, 16),
+                $"Jumps: {pc.jumpsRemaining}/{pc.maxJumps}",
+                actionStyle);
+        }
     }
 }

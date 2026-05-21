@@ -12,16 +12,27 @@ public class ChargeResource : MonoBehaviour
     public bool bubbleActive = false;
     public float bubbleChargeCost = 0.2f;
 
+    [Header("Discharge Penalty")]
+    public float graceTime = 3f;
+    public float dischargeDamageInterval = 2f;
+
     [Header("Visual")]
     public Color positiveColor = new Color(0.3f, 0.6f, 1f);
     public Color negativeColor = new Color(1f, 0.3f, 0.3f);
     public Color neutralColor = new Color(0.8f, 0.8f, 0.8f);
 
     private SpriteRenderer sr;
+    private float graceTimer = 0f;
+    private float damageTimer = 0f;
+    private bool wasNeutral = false;
+    private PlayerHealth playerHealth;
 
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
+        playerHealth = GetComponent<PlayerHealth>();
+        graceTimer = graceTime;
+        damageTimer = dischargeDamageInterval;
         UpdateVisual();
     }
 
@@ -29,6 +40,7 @@ public class ChargeResource : MonoBehaviour
     {
         HandleBubble();
         DissipateCharge();
+        HandleDischargePenalty();
         UpdateVisual();
     }
 
@@ -56,6 +68,39 @@ public class ChargeResource : MonoBehaviour
         }
     }
 
+    void HandleDischargePenalty()
+    {
+        if (IsNeutral())
+        {
+            if (!wasNeutral)
+            {
+                graceTimer = graceTime;
+                wasNeutral = true;
+                damageTimer = dischargeDamageInterval;
+            }
+
+            if (graceTimer > 0f)
+            {
+                graceTimer -= Time.deltaTime;
+                return;
+            }
+
+            // Grace expired
+            damageTimer -= Time.deltaTime;
+            if (damageTimer <= 0f)
+            {
+                playerHealth?.TakeDamage(1);
+                damageTimer = dischargeDamageInterval;
+            }
+        }
+        else
+        {
+            wasNeutral = false;
+            graceTimer = graceTime;
+            damageTimer = dischargeDamageInterval;
+        }
+    }
+
     void UpdateVisual()
     {
         if (sr == null) return;
@@ -66,6 +111,10 @@ public class ChargeResource : MonoBehaviour
         else
             sr.color = neutralColor;
     }
+
+    // Called by ActionFeedback to show grace timer
+    public float GetGraceTimer() => graceTimer;
+    public bool IsInGrace() => wasNeutral && graceTimer > 0f;
 
     public void AddCharge(float amount)
     {

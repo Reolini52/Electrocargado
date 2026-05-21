@@ -83,7 +83,8 @@ public class EnemyCorruptor : MonoBehaviour
         }
 
         // Only chase if in detection radius and has LOS
-        if (dist <= detectionRadius && hasLineOfSight)
+        // Always chase if in detection radius — no LOS requirement
+        if (dist <= detectionRadius)
             Chase();
         else
             Patrol();
