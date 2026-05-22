@@ -145,10 +145,14 @@ public class GandalfNPC : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height),
             Texture2D.whiteTexture);
 
-        float w = 500f;
-        float h = 320f;
-        float x = Screen.width / 2f - w / 2f;
-        float y = Screen.height / 2f - h / 2f;
+        // Position above player head in screen space
+        Vector3 playerScreen = Camera.main.WorldToScreenPoint(player.position);
+        playerScreen.y = Screen.height - playerScreen.y; // flip Y for GUI
+
+        float w = 350f;
+        float h = 220f;
+        float x = Mathf.Clamp(playerScreen.x - w / 2f, 10f, Screen.width - w - 10f);
+        float y = Mathf.Clamp(playerScreen.y - h - 80f, 10f, Screen.height - h - 10f);
 
         // Panel
         GUI.color = new Color(0.05f, 0.05f, 0.2f, 0.98f);

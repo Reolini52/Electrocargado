@@ -3,11 +3,16 @@ using UnityEngine;
 public class ChargeDetector : MonoBehaviour
 {
     [Header("Requirements")]
-    public float requiredCharge = 1f; // 1 = positive, -1 = negative
+    public float requiredCharge = 1f;
     public float chargeThreshold = 0.3f;
 
-    [Header("Door Reference")]
+    [Header("Connections")]
     public GameObject door;
+    public CurrentRod connectedRod;
+    public bool isPositiveTerminal = true; // + or - terminal of rod
+
+    [Header("Rod Partner")]
+    public ChargeDetector partnerDetector; // the other terminal
 
     [Header("Visual")]
     public Color inactiveColor = new Color(0.4f, 0.4f, 0.4f);
@@ -25,21 +30,13 @@ public class ChargeDetector : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // Check dynamic object
         DynamicChargedObject dynObj = other.GetComponent<DynamicChargedObject>();
-        if (dynObj != null)
-        {
-            CheckCharge(dynObj.charge);
-            return;
-        }
-
-        // Check player directly
         ChargeResource playerCharge = other.GetComponent<ChargeResource>();
-        if (playerCharge != null)
-        {
+
+        if (dynObj != null)
+            CheckCharge(dynObj.charge);
+        else if (playerCharge != null)
             CheckCharge(playerCharge.GetCharge());
-            return;
-        }
     }
 
     void OnTriggerExit2D(Collider2D other)
@@ -49,10 +46,14 @@ public class ChargeDetector : MonoBehaviour
 
         if (dynObj != null || playerCharge != null)
         {
-            if (!isActivated) return;
             isActivated = false;
             UpdateVisual(inactiveColor);
-            if (door != null) door.SetActive(true); // close door
+
+            if (door != null) door.SetActive(true);
+
+            // Deactivate rod if partner also deactivates
+            if (connectedRod != null)
+                connectedRod.ActivateCurrent(false, false);
         }
     }
 
@@ -66,7 +67,11 @@ public class ChargeDetector : MonoBehaviour
         {
             isActivated = true;
             UpdateVisual(activeColor);
-            if (door != null) door.SetActive(false); // open door
+
+            if (door != null) door.SetActive(false);
+
+            // Check if partner is also activated
+            TryActivateRod();
         }
         else
         {
@@ -74,21 +79,39 @@ public class ChargeDetector : MonoBehaviour
         }
     }
 
+    void TryActivateRod()
+    {
+        if (connectedRod == null) return;
+
+        bool partnerActive = partnerDetector != null &&
+            partnerDetector.IsActivated();
+
+        if (partnerActive)
+        {
+            // Both terminals active = current flows
+            // Direction depends on which is + and which is -
+            connectedRod.ActivateCurrent(true, isPositiveTerminal);
+        }
+    }
+
+    public bool IsActivated() => isActivated;
+
     void UpdateVisual(Color c)
     {
         if (sr != null) sr.color = c;
     }
 
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = requiredCharge > 0 ? Color.blue : Color.red;
-        Gizmos.DrawWireCube(transform.position, transform.localScale);
-    }
     void OnGUI()
     {
         if (Camera.main == null) return;
 
         Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position);
+
+        // Only draw if object is visible on screen
+        if (screenPos.z < 0) return; // behind camera
+        if (screenPos.x < 0 || screenPos.x > Screen.width) return;
+        if (screenPos.y < 0 || screenPos.y > Screen.height) return;
+
         screenPos.y = Screen.height - screenPos.y;
 
         GUIStyle style = new GUIStyle(GUI.skin.label);
