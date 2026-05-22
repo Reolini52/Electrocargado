@@ -10,7 +10,6 @@ public class CurrentRod : MonoBehaviour
 
     [Header("Rod Shape")]
     public float rodLength = 4f;
-    public float rodWidth = 0.3f;
 
     [Header("Electrons")]
     public int electronCount = 6;
@@ -18,25 +17,17 @@ public class CurrentRod : MonoBehaviour
     public Color electronColor = new Color(0.3f, 0.6f, 1f);
     public float electronSize = 0.15f;
 
-    [Header("Field Visual")]
-    public Color activeColor = new Color(1f, 0.8f, 0f, 0.3f);
-    public Color inactiveColor = new Color(0.4f, 0.4f, 0.4f, 0.5f);
-
     private SpriteRenderer sr;
     private ChargeResource player;
     private Rigidbody2D playerRb;
 
-    // Electron objects
     private List<GameObject> electrons = new List<GameObject>();
     private List<float> electronOffsets = new List<float>();
-
-    // Field ring visuals
-    private List<GameObject> fieldRings = new List<GameObject>();
+    private List<LineRenderer> fieldRings = new List<LineRenderer>();
 
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
-        sr.size = new Vector2(rodWidth, rodLength);
 
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj != null)
@@ -58,13 +49,15 @@ public class CurrentRod : MonoBehaviour
             e.transform.parent = transform;
 
             SpriteRenderer esr = e.AddComponent<SpriteRenderer>();
-            esr.sprite = GetComponent<SpriteRenderer>().sprite;
             esr.color = electronColor;
             esr.sortingOrder = 2;
+
+            // Use a simple white square sprite
+            esr.sprite = sr.sprite;
             e.transform.localScale = Vector3.one * electronSize;
 
-            float offset = (float)i / electronCount * rodLength
-                - rodLength / 2f;
+            float offset = (float)i / electronCount
+                * rodLength - rodLength / 2f;
             electronOffsets.Add(offset);
             e.transform.localPosition = new Vector3(0f, offset, 0f);
 
@@ -75,42 +68,39 @@ public class CurrentRod : MonoBehaviour
 
     void CreateFieldRings()
     {
-        // Visual rings showing magnetic field circles around rod
         int ringCount = 3;
         for (int i = 0; i < ringCount; i++)
         {
-            GameObject ring = new GameObject($"FieldRing_{i}");
-            ring.transform.parent = transform;
-            ring.transform.localPosition = Vector3.zero;
+            GameObject ringObj = new GameObject($"Ring_{i}");
+            ringObj.transform.parent = transform;
+            ringObj.transform.localPosition = Vector3.zero;
 
-            // Draw ring using LineRenderer
-            LineRenderer lr = ring.AddComponent<LineRenderer>();
-            lr.useWorldSpace = false;
+            LineRenderer lr = ringObj.AddComponent<LineRenderer>();
+            lr.useWorldSpace = true;
             lr.loop = true;
-            lr.startWidth = 0.05f;
-            lr.endWidth = 0.05f;
+            lr.startWidth = 0.06f;
+            lr.endWidth = 0.06f;
             lr.material = new Material(Shader.Find("Sprites/Default"));
             lr.sortingOrder = 1;
 
-            float radius = 1f + i * 0.8f;
+            float radius = 1.5f + i * 1f;
             int segments = 32;
             lr.positionCount = segments;
 
             for (int j = 0; j < segments; j++)
             {
                 float angle = (float)j / segments * Mathf.PI * 2f;
-                lr.SetPosition(j, new Vector3(
+                lr.SetPosition(j, transform.position + new Vector3(
                     Mathf.Cos(angle) * radius,
-                    0f,
-                    Mathf.Sin(angle) * radius
+                    0f, 0f
                 ));
             }
 
-            Color ringColor = new Color(1f, 0.8f, 0f, 0f);
-            lr.startColor = ringColor;
-            lr.endColor = ringColor;
+            Color c = new Color(1f, 0.8f, 0f, 0f);
+            lr.startColor = c;
+            lr.endColor = c;
 
-            fieldRings.Add(ring);
+            fieldRings.Add(lr);
         }
     }
 
@@ -129,10 +119,8 @@ public class CurrentRod : MonoBehaviour
     {
         for (int i = 0; i < electrons.Count; i++)
         {
-            // Move electrons along rod
             electronOffsets[i] -= electronSpeed * Time.deltaTime;
 
-            // Wrap around
             if (electronOffsets[i] < -rodLength / 2f)
                 electronOffsets[i] += rodLength;
 
@@ -143,19 +131,27 @@ public class CurrentRod : MonoBehaviour
 
     void UpdateFieldRings()
     {
-        // Animate rings expanding outward = field propagating
         for (int i = 0; i < fieldRings.Count; i++)
         {
-            LineRenderer lr = fieldRings[i].GetComponent<LineRenderer>();
-            if (lr == null) continue;
-
             float pulse = Mathf.PingPong(
-                Time.time * 0.8f + i * 0.3f, 1f);
+                Time.time * 0.8f + i * 0.4f, 1f);
 
-            Color ringColor = new Color(1f, 0.8f, 0f,
-                pulse * 0.5f);
-            lr.startColor = ringColor;
-            lr.endColor = ringColor;
+            Color c = new Color(1f, 0.8f, 0f, pulse * 0.6f);
+            fieldRings[i].startColor = c;
+            fieldRings[i].endColor = c;
+
+            // Update ring positions to follow rod
+            int segments = fieldRings[i].positionCount;
+            float radius = 1.5f + i * 1f;
+            for (int j = 0; j < segments; j++)
+            {
+                float angle = (float)j / segments * Mathf.PI * 2f;
+                fieldRings[i].SetPosition(j,
+                    transform.position + new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        0f, 0f
+                    ));
+            }
         }
     }
 
@@ -163,13 +159,20 @@ public class CurrentRod : MonoBehaviour
     {
         currentActive = active;
 
-        // Reverse electron direction based on which terminal is +
         electronSpeed = positiveTerminal ?
             Mathf.Abs(electronSpeed) :
             -Mathf.Abs(electronSpeed);
 
         foreach (var e in electrons)
             e.SetActive(active);
+
+        // Hide rings when inactive
+        foreach (var ring in fieldRings)
+        {
+            Color c = new Color(1f, 0.8f, 0f, 0f);
+            ring.startColor = c;
+            ring.endColor = c;
+        }
     }
 
     void FixedUpdate()
@@ -178,14 +181,16 @@ public class CurrentRod : MonoBehaviour
         if (player.IsNeutral()) return;
 
         float dist = Vector2.Distance(
-            transform.position, player.transform.position);
+            transform.position,
+            player.transform.position);
+
         if (dist > magneticRadius || dist < 0.1f) return;
 
         Vector2 dirToPlayer = (player.transform.position
             - transform.position).normalized;
 
-        // Perpendicular force = circular magnetic field
-        Vector2 perpendicular = new Vector2(-dirToPlayer.y, dirToPlayer.x);
+        Vector2 perpendicular = new Vector2(
+            -dirToPlayer.y, dirToPlayer.x);
 
         float normalizedDist = dist / magneticRadius;
         float forceMag = magneticStrength * (1f - normalizedDist)
@@ -201,7 +206,7 @@ public class CurrentRod : MonoBehaviour
     {
         if (sr != null)
             sr.color = currentActive ?
-                new Color(0.6f, 0.8f, 1f) :
+                new Color(0.5f, 0.8f, 1f) :
                 new Color(0.4f, 0.4f, 0.5f);
     }
 

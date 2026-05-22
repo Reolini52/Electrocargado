@@ -1,6 +1,15 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
+
+[System.Serializable]
+public class TrialQuestion
+{
+    [TextArea(2, 4)]
+    public string question;
+    public string[] options = new string[4];
+    public int correctAnswer = 0;
+}
 
 public class GandalfNPC : MonoBehaviour
 {
@@ -9,15 +18,7 @@ public class GandalfNPC : MonoBehaviour
     public string nextSceneName = "Level2";
 
     [Header("Questions")]
-    [TextArea(2, 4)]
-    public string question = "Two charges with the same sign are placed near each other. What happens?";
-    public string[] options = {
-        "A) They attract",
-        "B) They repel",
-        "C) Nothing happens",
-        "D) They neutralize"
-    };
-    public int correctAnswer = 1; // index of correct option (B = index 1)
+    public TrialQuestion[] questions;
 
     [Header("Punishment")]
     public int failDamage = 1;
@@ -26,10 +27,12 @@ public class GandalfNPC : MonoBehaviour
 
     private Transform player;
     private PlayerHealth playerHealth;
+
     private bool isActive = false;
     private bool hasTriggered = false;
     private bool trialComplete = false;
 
+    private int currentQuestion = 0;
     private int selectedOption = 0;
     private bool answered = false;
     private bool correct = false;
@@ -39,8 +42,6 @@ public class GandalfNPC : MonoBehaviour
     private GUIStyle titleStyle;
     private GUIStyle optionStyle;
     private GUIStyle selectedStyle;
-    private GUIStyle correctStyle;
-    private GUIStyle wrongStyle;
     private GUIStyle resultStyle;
 
     void Start()
@@ -63,26 +64,31 @@ public class GandalfNPC : MonoBehaviour
         {
             hasTriggered = true;
             isActive = true;
+            currentQuestion = 0;
+            selectedOption = 0;
+            answered = false;
             Time.timeScale = 0f;
         }
 
-        if (!isActive || answered) return;
+        if (!isActive) return;
 
-        // Navigate options
-        if (Keyboard.current.wKey.wasPressedThisFrame ||
-            Keyboard.current.upArrowKey.wasPressedThisFrame)
-            selectedOption = Mathf.Max(0, selectedOption - 1);
+        if (!answered)
+        {
+            if (Keyboard.current.wKey.wasPressedThisFrame ||
+                Keyboard.current.upArrowKey.wasPressedThisFrame)
+                selectedOption = Mathf.Max(0, selectedOption - 1);
 
-        if (Keyboard.current.sKey.wasPressedThisFrame ||
-            Keyboard.current.downArrowKey.wasPressedThisFrame)
-            selectedOption = Mathf.Min(options.Length - 1, selectedOption + 1);
+            if (Keyboard.current.sKey.wasPressedThisFrame ||
+                Keyboard.current.downArrowKey.wasPressedThisFrame)
+                selectedOption = Mathf.Min(
+                    questions[currentQuestion].options.Length - 1,
+                    selectedOption + 1);
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame ||
-            Keyboard.current.enterKey.wasPressedThisFrame)
-            SubmitAnswer();
-
-        // Result timer
-        if (answered)
+            if (Keyboard.current.spaceKey.wasPressedThisFrame ||
+                Keyboard.current.enterKey.wasPressedThisFrame)
+                SubmitAnswer();
+        }
+        else
         {
             resultTimer -= Time.unscaledDeltaTime;
             if (resultTimer <= 0f)
@@ -93,24 +99,22 @@ public class GandalfNPC : MonoBehaviour
     void SubmitAnswer()
     {
         answered = true;
-        correct = selectedOption == correctAnswer;
+        correct = selectedOption == questions[currentQuestion].correctAnswer;
         resultTimer = resultDisplayTime;
         Time.timeScale = 1f;
 
         if (!correct)
         {
-            // Punishment
             playerHealth?.TakeDamage(failDamage);
 
-            // Spawn enemies if assigned
             foreach (Transform spawn in spawnPoints)
             {
                 if (enemyPrefabs.Length > 0)
                 {
                     int idx = Random.Range(0, enemyPrefabs.Length);
                     if (enemyPrefabs[idx] != null)
-                        Instantiate(enemyPrefabs[idx], spawn.position,
-                            Quaternion.identity);
+                        Instantiate(enemyPrefabs[idx],
+                            spawn.position, Quaternion.identity);
                 }
             }
         }
@@ -120,18 +124,32 @@ public class GandalfNPC : MonoBehaviour
     {
         if (correct)
         {
-            trialComplete = true;
-            isActive = false;
-            // Load next level
-            SceneManager.LoadScene(nextSceneName);
+            currentQuestion++;
+
+            if (currentQuestion >= questions.Length)
+            {
+                // All questions passed
+                trialComplete = true;
+                isActive = false;
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(nextSceneName);
+            }
+            else
+            {
+                // Next question
+                answered = false;
+                selectedOption = 0;
+                resultTimer = 0f;
+                Time.timeScale = 0f;
+            }
         }
         else
         {
-            // Reset for retry
+            // Restart from question 1
             answered = false;
             selectedOption = 0;
-            hasTriggered = false;
-            isActive = false;
+            currentQuestion = 0;
+            Time.timeScale = 0f;
         }
     }
 
@@ -145,16 +163,19 @@ public class GandalfNPC : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height),
             Texture2D.whiteTexture);
 
-        // Position above player head in screen space
-        Vector3 playerScreen = Camera.main.WorldToScreenPoint(player.position);
-        playerScreen.y = Screen.height - playerScreen.y; // flip Y for GUI
+        // Panel above player
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(
+            player != null ? player.position : Vector3.zero);
+        screenPos.y = Screen.height - screenPos.y;
 
-        float w = 350f;
-        float h = 220f;
-        float x = Mathf.Clamp(playerScreen.x - w / 2f, 10f, Screen.width - w - 10f);
-        float y = Mathf.Clamp(playerScreen.y - h - 80f, 10f, Screen.height - h - 10f);
+        float w = 400f;
+        float h = 280f;
+        float x = Mathf.Clamp(screenPos.x - w / 2f,
+            10f, Screen.width - w - 10f);
+        float y = Mathf.Clamp(screenPos.y - h - 80f,
+            10f, Screen.height - h - 10f);
 
-        // Panel
+        // Panel background
         GUI.color = new Color(0.05f, 0.05f, 0.2f, 0.98f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
 
@@ -162,68 +183,75 @@ public class GandalfNPC : MonoBehaviour
         GUI.color = new Color(0.3f, 0.8f, 1f);
         GUI.DrawTexture(new Rect(x, y, w, 3), Texture2D.whiteTexture);
 
-        // Title
+        // Title with question number
         GUI.color = new Color(0.3f, 0.8f, 1f);
-        GUI.Label(new Rect(x + 20, y + 12, w - 40, 24),
-            "⚡ FIREWALL CHECKPOINT", titleStyle);
+        GUI.Label(new Rect(x + 15, y + 10, w - 30, 22),
+            $"⚡ FIREWALL — Pregunta {currentQuestion + 1}/{questions.Length}",
+            titleStyle);
 
         // Divider
         GUI.color = new Color(1f, 1f, 1f, 0.1f);
-        GUI.DrawTexture(new Rect(x + 20, y + 42, w - 40, 1),
+        GUI.DrawTexture(new Rect(x + 15, y + 38, w - 30, 1),
             Texture2D.whiteTexture);
 
         if (!answered)
         {
-            // Question
+            // Question text
             GUI.color = Color.white;
-            GUI.Label(new Rect(x + 20, y + 52, w - 40, 60),
-                question, optionStyle);
+            GUI.Label(new Rect(x + 15, y + 46, w - 30, 70),
+                questions[currentQuestion].question, optionStyle);
 
             // Options
-            for (int i = 0; i < options.Length; i++)
+            for (int i = 0;
+                i < questions[currentQuestion].options.Length; i++)
             {
-                float oy = y + 125f + i * 40f;
+                float oy = y + 125f + i * 36f;
                 bool isSelected = i == selectedOption;
 
-                // Highlight selected
                 if (isSelected)
                 {
-                    GUI.color = new Color(0.3f, 0.8f, 1f, 0.2f);
-                    GUI.DrawTexture(new Rect(x + 15, oy - 2, w - 30, 34),
+                    GUI.color = new Color(0.3f, 0.8f, 1f, 0.15f);
+                    GUI.DrawTexture(new Rect(x + 12, oy - 2, w - 24, 30),
                         Texture2D.whiteTexture);
                 }
 
                 GUI.color = isSelected ?
                     new Color(0.3f, 1f, 0.8f) : Color.white;
-                GUI.Label(new Rect(x + 25, oy, w - 50, 30),
-                    (isSelected ? "▶ " : "   ") + options[i],
+                GUI.Label(new Rect(x + 20, oy, w - 40, 28),
+                    (isSelected ? "▶ " : "   ") +
+                    questions[currentQuestion].options[i],
                     isSelected ? selectedStyle : optionStyle);
             }
 
             // Controls hint
-            GUI.color = new Color(1f, 1f, 1f, 0.4f);
-            GUI.Label(new Rect(x + 20, y + h - 28, w - 40, 20),
-                "[W/S] Navigate   [SPACE] Confirm", optionStyle);
+            GUI.color = new Color(1f, 1f, 1f, 0.35f);
+            GUI.Label(new Rect(x + 15, y + h - 24, w - 30, 18),
+                "[W/S] Navegar   [SPACE] Confirmar", optionStyle);
         }
         else
         {
-            // Result screen
+            // Result
             string resultText = correct ?
-                "✓ CORRECT! Access granted." :
-                "✗ WRONG! The firewall holds.";
+                "✓ CORRECTO! Acceso concedido." :
+                "✗ INCORRECTO. El firewall resiste.";
 
             GUI.color = correct ?
                 new Color(0.3f, 1f, 0.3f) :
                 new Color(1f, 0.3f, 0.3f);
 
-            GUI.Label(new Rect(x + 20, y + h / 2f - 20, w - 40, 40),
+            GUI.Label(
+                new Rect(x + 15, y + h / 2f - 30, w - 30, 40),
                 resultText, resultStyle);
 
-            if (!correct)
+            if (!correct && currentQuestion < questions.Length)
             {
                 GUI.color = new Color(1f, 1f, 1f, 0.6f);
-                GUI.Label(new Rect(x + 20, y + h / 2f + 20, w - 40, 24),
-                    $"Correct answer: {options[correctAnswer]}", optionStyle);
+                GUI.Label(
+                    new Rect(x + 15, y + h / 2f + 15, w - 30, 24),
+                    "Respuesta correcta: " +
+                    questions[currentQuestion]
+                        .options[questions[currentQuestion].correctAnswer],
+                    optionStyle);
             }
         }
     }
@@ -231,24 +259,25 @@ public class GandalfNPC : MonoBehaviour
     void InitStyles()
     {
         titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 14;
+        titleStyle.fontSize = 13;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.normal.textColor = Color.white;
 
         optionStyle = new GUIStyle(GUI.skin.label);
-        optionStyle.fontSize = 13;
+        optionStyle.fontSize = 12;
         optionStyle.wordWrap = true;
         optionStyle.normal.textColor = Color.white;
 
         selectedStyle = new GUIStyle(GUI.skin.label);
-        selectedStyle.fontSize = 13;
+        selectedStyle.fontSize = 12;
         selectedStyle.fontStyle = FontStyle.Bold;
         selectedStyle.normal.textColor = Color.white;
 
         resultStyle = new GUIStyle(GUI.skin.label);
-        resultStyle.fontSize = 18;
+        resultStyle.fontSize = 16;
         resultStyle.fontStyle = FontStyle.Bold;
         resultStyle.alignment = TextAnchor.MiddleCenter;
+        resultStyle.wordWrap = true;
         resultStyle.normal.textColor = Color.white;
     }
 

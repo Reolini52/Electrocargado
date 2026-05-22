@@ -12,10 +12,14 @@ public class ChargeAbsorber : MonoBehaviour
     private Camera cam;
     private bool absorbModeActive = false;
 
+    // Layers to ignore when detecting charged objects
+    private int ignoreLayers;
+
     void Start()
     {
         chargeResource = GetComponent<ChargeResource>();
         cam = Camera.main;
+        ignoreLayers = ~LayerMask.GetMask("Tilemap", "Player", "Ground");
     }
 
     void Update()
@@ -36,15 +40,15 @@ public class ChargeAbsorber : MonoBehaviour
             TryExpel(mouseWorld);
     }
 
-    void TryAbsorb(Vector2 targetPos)
+    void TryAbsorb(Vector2 mouseWorld)
     {
         Collider2D hit = Physics2D.OverlapCircle(
-            targetPos, 2.5f,
-            LayerMask.GetMask("ChargedObjects")
-        );
+            mouseWorld, 2.5f, ignoreLayers);
         if (hit == null || hit.gameObject == gameObject) return;
+        if (hit.GetComponent<ChargeResource>() != null) return;
 
-        float dist = Vector2.Distance(transform.position, hit.transform.position);
+        float dist = Vector2.Distance(
+            transform.position, hit.transform.position);
         if (dist > absorbRange) return;
 
         ChargedObject fixedObj = hit.GetComponent<ChargedObject>();
@@ -62,7 +66,8 @@ public class ChargeAbsorber : MonoBehaviour
         {
             float chargeSign = Mathf.Sign(dynObj.charge);
             chargeResource.AddCharge(chargeSign * amount);
-            dynObj.charge = Mathf.MoveTowards(dynObj.charge, 0f, amount * 0.4f);
+            dynObj.charge = Mathf.MoveTowards(
+                dynObj.charge, 0f, amount * 0.4f);
             dynObj.UpdateVisual();
         }
     }
@@ -72,12 +77,12 @@ public class ChargeAbsorber : MonoBehaviour
         if (chargeResource.IsNeutral()) return;
 
         Collider2D hit = Physics2D.OverlapCircle(
-            targetPos, 2.5f,
-            LayerMask.GetMask("ChargedObjects")
-        );
+            targetPos, 2.5f, ignoreLayers);
         if (hit == null || hit.gameObject == gameObject) return;
+        if (hit.GetComponent<ChargeResource>() != null) return;
 
-        float dist = Vector2.Distance(transform.position, hit.transform.position);
+        float dist = Vector2.Distance(
+            transform.position, hit.transform.position);
         if (dist > absorbRange) return;
 
         float currentCharge = chargeResource.GetCharge();

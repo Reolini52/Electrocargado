@@ -19,12 +19,17 @@ public class ChargeInteractor : MonoBehaviour
     private GameObject grappleTarget;
     private bool attracting = false;
 
+    // Layers to ignore
+    private int ignoreLayers;
+
     void Start()
     {
         chargeResource = GetComponent<ChargeResource>();
         absorber = GetComponent<ChargeAbsorber>();
         cam = Camera.main;
         rb = GetComponent<Rigidbody2D>();
+
+        ignoreLayers = ~LayerMask.GetMask("Tilemap", "Player", "Ground");
 
         beam = GetComponent<LineRenderer>();
         if (beam == null)
@@ -60,9 +65,7 @@ public class ChargeInteractor : MonoBehaviour
         );
 
         if (Mouse.current.leftButton.isPressed)
-        {
             TryGrapple(mouseWorld);
-        }
         else
         {
             beam.enabled = false;
@@ -78,7 +81,8 @@ public class ChargeInteractor : MonoBehaviour
         if (grappleTarget != null)
             grapplePoint = grappleTarget.transform.position;
 
-        Vector2 dirToPoint = (grapplePoint - (Vector2)transform.position).normalized;
+        Vector2 dirToPoint = (grapplePoint
+            - (Vector2)transform.position).normalized;
 
         if (attracting)
             rb.AddForce(dirToPoint * holdForce, ForceMode2D.Force);
@@ -91,11 +95,17 @@ public class ChargeInteractor : MonoBehaviour
 
     void TryGrapple(Vector2 mousePos)
     {
-        // Check for charged object near mouse cursor
-        Collider2D hit = Physics2D.OverlapCircle(mousePos, 2f);
+        Collider2D hit = Physics2D.OverlapCircle(
+            mousePos, 2.5f, ignoreLayers);
 
         if (hit != null && hit.gameObject != gameObject)
         {
+            if (hit.GetComponent<ChargeResource>() != null)
+            {
+                beam.enabled = false;
+                return;
+            }
+
             float targetCharge = 0f;
             bool found = false;
 
@@ -119,14 +129,14 @@ public class ChargeInteractor : MonoBehaviour
 
                 if (!isGrappling)
                 {
-                    Vector2 dir = (mousePos - (Vector2)transform.position).normalized;
+                    Vector2 dir = (mousePos
+                        - (Vector2)transform.position).normalized;
                     Vector2 impulseDir = attracting ? dir : -dir;
                     rb.AddForce(impulseDir * force, ForceMode2D.Impulse);
                 }
 
                 isGrappling = true;
 
-                // Update beam
                 beam.enabled = true;
                 beam.SetPosition(0, transform.position);
                 beam.SetPosition(1, grapplePoint);
@@ -135,12 +145,13 @@ public class ChargeInteractor : MonoBehaviour
                     new Color(0.3f, 1f, 0.3f, 0.9f) :
                     new Color(1f, 0.3f, 0.3f, 0.9f);
                 beam.startColor = beamColor;
-                beam.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, 0f);
+                beam.endColor = new Color(
+                    beamColor.r, beamColor.g, beamColor.b, 0f);
                 return;
             }
         }
 
-        // No charged target — show faint beam to mouse
+        // No charged target found
         isGrappling = false;
         grappleTarget = null;
         beam.enabled = true;

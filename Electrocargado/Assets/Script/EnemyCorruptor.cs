@@ -33,7 +33,6 @@ public class EnemyCorruptor : MonoBehaviour
 
     private bool isDead = false;
     private bool isAttracted = false;
-    private bool hasLineOfSight = false;
     private bool isFacingRight = true;
 
     void Start()
@@ -41,6 +40,8 @@ public class EnemyCorruptor : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
         health = GetComponent<EnemyHealth>();
+
+        isFacingRight = Random.value > 0.5f;
 
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj != null)
@@ -59,8 +60,7 @@ public class EnemyCorruptor : MonoBehaviour
 
         float dist = Vector2.Distance(transform.position, player.position);
 
-        // Check charge interaction
-        if (!playerCharge.IsNeutral())
+        if (playerCharge != null && !playerCharge.IsNeutral())
         {
             float chargeProduct = charge * playerCharge.GetCharge();
             isAttracted = chargeProduct < 0;
@@ -70,20 +70,14 @@ public class EnemyCorruptor : MonoBehaviour
             isAttracted = false;
         }
 
-        // Line of sight check
-        hasLineOfSight = CheckLineOfSight();
-
         UpdateVisual();
 
-        // Detonate if close enough
         if (dist < detonationRadius)
         {
             Detonate();
             return;
         }
 
-        // Only chase if in detection radius and has LOS
-        // Always chase if in detection radius — no LOS requirement
         if (dist <= detectionRadius)
             Chase();
         else
@@ -92,22 +86,19 @@ public class EnemyCorruptor : MonoBehaviour
 
     void Chase()
     {
-        bool edgeAhead = CheckEdgeAhead();
         Vector2 dirToPlayer = (player.position - transform.position).normalized;
 
-        if (!isAttracted && !playerCharge.IsNeutral())
+        if (!isAttracted && playerCharge != null && !playerCharge.IsNeutral())
         {
-            // Same charge = FLEE
-            Vector2 dirAway = -dirToPlayer;
-            bool edgeBehind = CheckEdgeAhead();
-
-            if (!edgeBehind)
+            // Same charge = flee
+            bool edgeAhead = CheckEdgeAhead();
+            if (!edgeAhead)
             {
                 rb.linearVelocity = new Vector2(
-                    dirAway.x * moveSpeed,
+                    -dirToPlayer.x * moveSpeed,
                     rb.linearVelocity.y
                 );
-                isFacingRight = dirAway.x > 0;
+                isFacingRight = -dirToPlayer.x > 0;
             }
             else
             {
@@ -116,53 +107,43 @@ public class EnemyCorruptor : MonoBehaviour
             return;
         }
 
-        // Attracted or neutral = chase
-        if (edgeAhead)
+        bool edge = CheckEdgeAhead();
+        if (edge)
         {
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             return;
         }
 
-        float speed = isAttracted ? moveSpeed * attractedSpeedMultiplier : moveSpeed;
-        rb.linearVelocity = new Vector2(dirToPlayer.x * speed, rb.linearVelocity.y);
+        float speed = isAttracted ?
+            moveSpeed * attractedSpeedMultiplier : moveSpeed;
+
+        rb.linearVelocity = new Vector2(
+            dirToPlayer.x * speed,
+            rb.linearVelocity.y
+        );
         isFacingRight = dirToPlayer.x > 0;
     }
 
     void Patrol()
     {
-        // Simple back and forth patrol
         bool edgeAhead = CheckEdgeAhead();
-        if (edgeAhead)
+        bool wallAhead = CheckWallAhead();
+
+        if (edgeAhead || wallAhead)
             isFacingRight = !isFacingRight;
 
         float dir = isFacingRight ? 1f : -1f;
         rb.linearVelocity = new Vector2(
-            dir * moveSpeed * 0.3f,
+            dir * moveSpeed * 0.4f,
             rb.linearVelocity.y
         );
     }
 
-    bool CheckLineOfSight()
-    {
-        Vector2 dirToPlayer = (player.position - transform.position).normalized;
-        float dist = Vector2.Distance(transform.position, player.position);
-
-        RaycastHit2D hit = Physics2D.Raycast(
-            transform.position,
-            dirToPlayer,
-            dist,
-            groundLayer
-        );
-
-        // If nothing blocking = has LOS
-        return hit.collider == null;
-    }
-
     bool CheckEdgeAhead()
     {
-        // Check if there's ground ahead and below
         Vector2 ahead = transform.position + new Vector3(
-            isFacingRight ? edgeCheckDistance : -edgeCheckDistance, 0f, 0f);
+            isFacingRight ? edgeCheckDistance : -edgeCheckDistance,
+            0f, 0f);
 
         RaycastHit2D hit = Physics2D.Raycast(
             ahead,
@@ -171,7 +152,21 @@ public class EnemyCorruptor : MonoBehaviour
             groundLayer
         );
 
-        return hit.collider == null; // no ground ahead = edge
+        return hit.collider == null;
+    }
+
+    bool CheckWallAhead()
+    {
+        Vector2 dir = isFacingRight ? Vector2.right : Vector2.left;
+
+        RaycastHit2D hit = Physics2D.Raycast(
+            transform.position,
+            dir,
+            0.6f,
+            groundLayer
+        );
+
+        return hit.collider != null;
     }
 
     void Detonate()
@@ -194,27 +189,15 @@ public class EnemyCorruptor : MonoBehaviour
     void UpdateVisual()
     {
         if (sr == null) return;
-
         Color baseColor = charge > 0 ? positiveColor : negativeColor;
 
         if (isAttracted)
-        {
-            // Pulse yellow when attracted and chasing fast
-            sr.color = Color.Lerp(
-                baseColor,
-                attractedColor,
-                Mathf.PingPong(Time.time * 5f, 1f)
-            );
-        }
-        else if (!playerCharge.IsNeutral())
-        {
-            // Slightly grey when repelled
+            sr.color = Color.Lerp(baseColor, attractedColor,
+                Mathf.PingPong(Time.time * 5f, 1f));
+        else if (playerCharge != null && !playerCharge.IsNeutral())
             sr.color = Color.Lerp(baseColor, repelledColor, 0.3f);
-        }
         else
-        {
             sr.color = baseColor;
-        }
     }
 
     void OnDrawGizmosSelected()
