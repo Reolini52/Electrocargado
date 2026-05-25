@@ -263,11 +263,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 336.03
+      value: 354.34
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 155.55
+      value: 155.4
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.z
@@ -28843,6 +28843,99 @@ PrefabInstance:
     - target: {fileID: 7353363350682480781, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: m_Name
       value: Gandalf
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: nextSceneName
+      value: Level 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[0].question
+      value: "Dos cargas del mismo signo se colocan cerca. \xBFQu\xE9 ocurre?"
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[1].question
+      value: Que representa la ecuacion F = kqQ/r
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[2].question
+      value: "Si duplicas la distancia entre dos cargas, \xBFqu\xE9 le pasa a la
+        fuerza?"
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[0].correctAnswer
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[1].correctAnswer
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[2].correctAnswer
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[0].options.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[1].options.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: questions.Array.data[2].options.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[0].options.Array.data[0]'
+      value: Se atraen
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[0].options.Array.data[1]'
+      value: Se repelen
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[0].options.Array.data[2]'
+      value: No pasa Nada
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[0].options.Array.data[3]'
+      value: Se neutralizan
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[1].options.Array.data[0]'
+      value: La fuerza gravitacional entre masas
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[1].options.Array.data[1]'
+      value: El flujo electrico atravez de una superficie
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[1].options.Array.data[2]'
+      value: La fuerza electrica entre dos cargas
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[1].options.Array.data[3]'
+      value: La energia potencial
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[2].options.Array.data[0]'
+      value: Se duplica
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[2].options.Array.data[1]'
+      value: Se cuadriplica
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[2].options.Array.data[2]'
+      value: Se reduce a la mitad
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'questions.Array.data[2].options.Array.data[3]'
+      value: Se reduce una cuarta parte
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

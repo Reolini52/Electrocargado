@@ -63,6 +63,13 @@ public class ActionFeedback : MonoBehaviour
 
     void OnGUI()
     {
+        PauseMenu pause = FindAnyObjectByType<PauseMenu>();
+        ControlsUI controls = FindAnyObjectByType<ControlsUI>();
+
+        if ((pause != null && pause.IsPaused()) ||
+            (controls != null && controls.IsVisible()))
+            return;
+
         if (actionStyle == null)
         {
             actionStyle = new GUIStyle(GUI.skin.label);

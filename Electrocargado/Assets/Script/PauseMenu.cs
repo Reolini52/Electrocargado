@@ -7,7 +7,7 @@ public class PauseMenu : MonoBehaviour
     private bool isPaused = false;
     private GUIStyle titleStyle;
     private GUIStyle buttonStyle;
-
+    public bool IsPaused() => isPaused;
     void Update()
     {
         if (Keyboard.current.escapeKey.wasPressedThisFrame)

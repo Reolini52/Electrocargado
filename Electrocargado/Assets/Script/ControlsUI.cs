@@ -4,11 +4,19 @@ using UnityEngine.InputSystem;
 public class ControlsUI : MonoBehaviour
 {
     private bool visible = false;
-
+    public bool IsVisible() => visible;
     void Update()
     {
         if (Keyboard.current.hKey.wasPressedThisFrame)
+        {
             visible = !visible;
+            Time.timeScale = visible ? 0f : 1f;
+        }
+    }
+
+    void OnDestroy()
+    {
+        Time.timeScale = 1f;
     }
 
     void OnGUI()

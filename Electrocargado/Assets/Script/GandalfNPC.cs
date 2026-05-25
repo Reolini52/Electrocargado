@@ -39,10 +39,18 @@ public class GandalfNPC : MonoBehaviour
     private float resultTimer = 0f;
     private float resultDisplayTime = 2f;
 
+    private int correctCount = 0;
+    private int requiredToPass = 0;
+
+    // Summary screen
+    private bool showingSummary = false;
+    private bool[] questionResults;
+
     private GUIStyle titleStyle;
     private GUIStyle optionStyle;
     private GUIStyle selectedStyle;
     private GUIStyle resultStyle;
+    private GUIStyle summaryStyle;
 
     void Start()
     {
@@ -52,6 +60,9 @@ public class GandalfNPC : MonoBehaviour
             player = playerObj.transform;
             playerHealth = playerObj.GetComponent<PlayerHealth>();
         }
+
+        requiredToPass = Mathf.CeilToInt(questions.Length / 2f);
+        questionResults = new bool[questions.Length];
     }
 
     void Update()
@@ -65,12 +76,24 @@ public class GandalfNPC : MonoBehaviour
             hasTriggered = true;
             isActive = true;
             currentQuestion = 0;
+            correctCount = 0;
             selectedOption = 0;
             answered = false;
+            showingSummary = false;
+            questionResults = new bool[questions.Length];
             Time.timeScale = 0f;
         }
 
         if (!isActive) return;
+
+        // Summary screen input
+        if (showingSummary)
+        {
+            if (Keyboard.current.spaceKey.wasPressedThisFrame ||
+                Keyboard.current.enterKey.wasPressedThisFrame)
+                FinishSummary();
+            return;
+        }
 
         if (!answered)
         {
@@ -92,7 +115,7 @@ public class GandalfNPC : MonoBehaviour
         {
             resultTimer -= Time.unscaledDeltaTime;
             if (resultTimer <= 0f)
-                FinishTrial();
+                AdvanceQuestion();
         }
     }
 
@@ -100,13 +123,55 @@ public class GandalfNPC : MonoBehaviour
     {
         answered = true;
         correct = selectedOption == questions[currentQuestion].correctAnswer;
+        questionResults[currentQuestion] = correct;
         resultTimer = resultDisplayTime;
         Time.timeScale = 1f;
 
-        if (!correct)
-        {
+        if (correct)
+            correctCount++;
+        else
             playerHealth?.TakeDamage(failDamage);
+    }
 
+    void AdvanceQuestion()
+    {
+        currentQuestion++;
+
+        if (currentQuestion >= questions.Length)
+        {
+            // All questions done — show summary
+            showingSummary = true;
+            Time.timeScale = 0f;
+            return;
+        }
+
+        // Next question
+        answered = false;
+        selectedOption = 0;
+        resultTimer = 0f;
+        Time.timeScale = 0f;
+    }
+
+    void FinishSummary()
+    {
+        bool passed = correctCount >= requiredToPass;
+
+        if (passed)
+        {
+            trialComplete = true;
+            isActive = false;
+            showingSummary = false;
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(nextSceneName);
+        }
+        else
+        {
+            // Daño por preguntas falladas
+            int missing = requiredToPass - correctCount;
+            for (int i = 0; i < missing; i++)
+                playerHealth?.TakeDamage(failDamage);
+
+            // Spawn enemigos
             foreach (Transform spawn in spawnPoints)
             {
                 if (enemyPrefabs.Length > 0)
@@ -117,39 +182,17 @@ public class GandalfNPC : MonoBehaviour
                             spawn.position, Quaternion.identity);
                 }
             }
-        }
-    }
 
-    void FinishTrial()
-    {
-        if (correct)
-        {
-            currentQuestion++;
-
-            if (currentQuestion >= questions.Length)
-            {
-                // All questions passed
-                trialComplete = true;
-                isActive = false;
-                Time.timeScale = 1f;
-                SceneManager.LoadScene(nextSceneName);
-            }
-            else
-            {
-                // Next question
-                answered = false;
-                selectedOption = 0;
-                resultTimer = 0f;
-                Time.timeScale = 0f;
-            }
-        }
-        else
-        {
-            // Restart from question 1
-            answered = false;
-            selectedOption = 0;
+            // Cerrar cuestionario — vuelve al juego frente a Gandalf
+            isActive = false;
+            showingSummary = false;
+            hasTriggered = false; // permite volver a triggear
             currentQuestion = 0;
-            Time.timeScale = 0f;
+            correctCount = 0;
+            selectedOption = 0;
+            answered = false;
+            questionResults = new bool[questions.Length];
+            Time.timeScale = 1f; // devuelve control al jugador
         }
     }
 
@@ -163,19 +206,12 @@ public class GandalfNPC : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height),
             Texture2D.whiteTexture);
 
-        // Panel above player
-        Vector3 screenPos = Camera.main.WorldToScreenPoint(
-            player != null ? player.position : Vector3.zero);
-        screenPos.y = Screen.height - screenPos.y;
+        float w = 420f;
+        float h = showingSummary ? 320f : 280f;
+        float x = Screen.width / 2f - w / 2f;
+        float y = Screen.height / 2f - h / 2f;
 
-        float w = 400f;
-        float h = 280f;
-        float x = Mathf.Clamp(screenPos.x - w / 2f,
-            10f, Screen.width - w - 10f);
-        float y = Mathf.Clamp(screenPos.y - h - 80f,
-            10f, Screen.height - h - 10f);
-
-        // Panel background
+        // Panel
         GUI.color = new Color(0.05f, 0.05f, 0.2f, 0.98f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
 
@@ -183,10 +219,16 @@ public class GandalfNPC : MonoBehaviour
         GUI.color = new Color(0.3f, 0.8f, 1f);
         GUI.DrawTexture(new Rect(x, y, w, 3), Texture2D.whiteTexture);
 
-        // Title with question number
+        if (showingSummary)
+        {
+            DrawSummary(x, y, w, h);
+            return;
+        }
+
+        // Title
         GUI.color = new Color(0.3f, 0.8f, 1f);
         GUI.Label(new Rect(x + 15, y + 10, w - 30, 22),
-            $"⚡ FIREWALL — Pregunta {currentQuestion + 1}/{questions.Length}",
+            $"⚡ FIREWALL — Pregunta {currentQuestion + 1}/{questions.Length}  |  ✓ {correctCount}/{requiredToPass} requeridas",
             titleStyle);
 
         // Divider
@@ -196,14 +238,13 @@ public class GandalfNPC : MonoBehaviour
 
         if (!answered)
         {
-            // Question text
+            // Question
             GUI.color = Color.white;
             GUI.Label(new Rect(x + 15, y + 46, w - 30, 70),
                 questions[currentQuestion].question, optionStyle);
 
             // Options
-            for (int i = 0;
-                i < questions[currentQuestion].options.Length; i++)
+            for (int i = 0; i < questions[currentQuestion].options.Length; i++)
             {
                 float oy = y + 125f + i * 36f;
                 bool isSelected = i == selectedOption;
@@ -223,37 +264,104 @@ public class GandalfNPC : MonoBehaviour
                     isSelected ? selectedStyle : optionStyle);
             }
 
-            // Controls hint
+            // Hint
             GUI.color = new Color(1f, 1f, 1f, 0.35f);
             GUI.Label(new Rect(x + 15, y + h - 24, w - 30, 18),
                 "[W/S] Navegar   [SPACE] Confirmar", optionStyle);
         }
         else
         {
-            // Result
+            // Result per question
             string resultText = correct ?
-                "✓ CORRECTO! Acceso concedido." :
-                "✗ INCORRECTO. El firewall resiste.";
+                "✓ ¡Correcto!" : "✗ Incorrecto";
 
             GUI.color = correct ?
                 new Color(0.3f, 1f, 0.3f) :
                 new Color(1f, 0.3f, 0.3f);
 
-            GUI.Label(
-                new Rect(x + 15, y + h / 2f - 30, w - 30, 40),
+            GUI.Label(new Rect(x + 15, y + h / 2f - 30, w - 30, 40),
                 resultText, resultStyle);
 
-            if (!correct && currentQuestion < questions.Length)
+            if (!correct)
             {
-                GUI.color = new Color(1f, 1f, 1f, 0.6f);
+                GUI.color = new Color(1f, 1f, 1f, 0.7f);
                 GUI.Label(
                     new Rect(x + 15, y + h / 2f + 15, w - 30, 24),
-                    "Respuesta correcta: " +
+                    "Correcta: " +
                     questions[currentQuestion]
                         .options[questions[currentQuestion].correctAnswer],
                     optionStyle);
             }
         }
+    }
+
+    void DrawSummary(float x, float y, float w, float h)
+    {
+        bool passed = correctCount >= requiredToPass;
+
+        // Title
+        GUI.color = passed ?
+            new Color(0.3f, 1f, 0.3f) :
+            new Color(1f, 0.3f, 0.3f);
+
+        GUI.Label(new Rect(x + 15, y + 10, w - 30, 24),
+            passed ? "⚡ FIREWALL SUPERADO" : "⚡ ACCESO DENEGADO",
+            titleStyle);
+
+        // Score
+        GUI.color = Color.white;
+        GUI.Label(new Rect(x + 15, y + 40, w - 30, 22),
+            $"Resultado: {correctCount}/{questions.Length} correctas  (mínimo {requiredToPass})",
+            optionStyle);
+
+        // Divider
+        GUI.color = new Color(1f, 1f, 1f, 0.1f);
+        GUI.DrawTexture(new Rect(x + 15, y + 68, w - 30, 1),
+            Texture2D.whiteTexture);
+
+        // Question results
+        GUI.Label(new Rect(x + 15, y + 78, w - 30, 18),
+            "Resumen de respuestas:", optionStyle);
+
+        for (int i = 0; i < questionResults.Length; i++)
+        {
+            float ry = y + 100f + i * 28f;
+            bool wasCorrect = questionResults[i];
+
+            GUI.color = wasCorrect ?
+                new Color(0.3f, 1f, 0.3f) :
+                new Color(1f, 0.3f, 0.3f);
+
+            // Show short version of question
+            string shortQ = questions[i].question.Length > 50 ?
+                questions[i].question.Substring(0, 50) + "..." :
+                questions[i].question;
+
+            GUI.Label(new Rect(x + 20, ry, w - 40, 24),
+                $"{(wasCorrect ? "✓" : "✗")} P{i + 1}: {shortQ}",
+                optionStyle);
+
+            // Show correct answer if wrong
+            if (!wasCorrect)
+            {
+                GUI.color = new Color(1f, 1f, 0.5f, 0.8f);
+                GUI.Label(new Rect(x + 35, ry + 14, w - 50, 16),
+                    $"→ {questions[i].options[questions[i].correctAnswer]}",
+                    optionStyle);
+            }
+        }
+
+        // Continue hint
+        GUI.color = passed ?
+            new Color(0.3f, 1f, 0.3f, 0.8f) :
+            new Color(1f, 0.4f, 0.4f, 0.8f);
+
+        GUI.Label(
+            new Rect(x + 15, y + h - 30, w - 30, 24),
+            passed ?
+                "[SPACE] Continuar al siguiente nivel" :
+                "[SPACE] Reintentar — se aplicará penalización",
+            optionStyle);
     }
 
     void InitStyles()
@@ -274,11 +382,16 @@ public class GandalfNPC : MonoBehaviour
         selectedStyle.normal.textColor = Color.white;
 
         resultStyle = new GUIStyle(GUI.skin.label);
-        resultStyle.fontSize = 16;
+        resultStyle.fontSize = 18;
         resultStyle.fontStyle = FontStyle.Bold;
         resultStyle.alignment = TextAnchor.MiddleCenter;
         resultStyle.wordWrap = true;
         resultStyle.normal.textColor = Color.white;
+
+        summaryStyle = new GUIStyle(GUI.skin.label);
+        summaryStyle.fontSize = 13;
+        summaryStyle.wordWrap = true;
+        summaryStyle.normal.textColor = Color.white;
     }
 
     void OnDrawGizmosSelected()
