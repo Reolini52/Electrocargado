@@ -30,6 +30,7 @@ public class ChargeDetector : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        Debug.Log($"Detector hit: {other.name} hasScript: {other.GetComponent<DynamicChargedObject>() != null}");
         DynamicChargedObject dynObj = other.GetComponent<DynamicChargedObject>();
         ChargeResource playerCharge = other.GetComponent<ChargeResource>();
 

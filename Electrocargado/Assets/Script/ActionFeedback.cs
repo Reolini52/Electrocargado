@@ -22,24 +22,26 @@ public class ActionFeedback : MonoBehaviour
 
     void Update()
     {
+        if (GandalfNPC.isGandalfActive) return;
+
         if (actionTimer > 0)
             actionTimer -= Time.deltaTime;
 
         if (absorber.IsAbsorbModeActive())
         {
             if (Mouse.current.leftButton.isPressed)
-                SetAction("ABSORBING", new Color(0f, 1f, 0.5f));
+                SetAction("ABSORBIENDO", new Color(0f, 1f, 0.5f));
             else if (Mouse.current.rightButton.isPressed)
-                SetAction("EXPELLING", new Color(1f, 0.6f, 0f));
+                SetAction("EXPULSANDO", new Color(1f, 0.6f, 0f));
             else
-                SetAction("ABSORB MODE", new Color(0f, 1f, 0.5f, 0.5f));
+                SetAction("MODO ABSORCIÓN", new Color(0f, 1f, 0.5f, 0.5f));
         }
         else if (!chargeResource.IsNeutral())
         {
             if (Mouse.current.leftButton.isPressed)
                 SetAction("GRAPPLING →", new Color(1f, 1f, 0f));
             else if (actionTimer <= 0)
-                SetAction(chargeResource.IsPositive() ? "CHARGED +" : "CHARGED -",
+                SetAction(chargeResource.IsPositive() ? "CARGADO +" : "CARGADO -",
                     chargeResource.IsPositive() ?
                     new Color(0.3f, 0.6f, 1f) :
                     new Color(1f, 0.3f, 0.3f));
@@ -47,11 +49,11 @@ public class ActionFeedback : MonoBehaviour
         else
         {
             if (actionTimer <= 0)
-                SetAction("NEUTRAL", new Color(0.7f, 0.7f, 0.7f, 0.5f));
+                SetAction("NEUTRO", new Color(0.7f, 0.7f, 0.7f, 0.5f));
         }
 
         if (chargeResource.IsBubbleActive())
-            SetAction("BUBBLE ACTIVE", new Color(0.8f, 0.3f, 1f));
+            SetAction("BURBUJA ACTIVA", new Color(0.8f, 0.3f, 1f));
     }
 
     void SetAction(string text, Color color, float duration = 0.1f)
@@ -63,12 +65,7 @@ public class ActionFeedback : MonoBehaviour
 
     void OnGUI()
     {
-        PauseMenu pause = FindAnyObjectByType<PauseMenu>();
-        ControlsUI controls = FindAnyObjectByType<ControlsUI>();
-
-        if ((pause != null && pause.IsPaused()) ||
-            (controls != null && controls.IsVisible()))
-            return;
+        if (GandalfNPC.isGandalfActive) return;
 
         if (actionStyle == null)
         {
@@ -93,7 +90,7 @@ public class ActionFeedback : MonoBehaviour
             warningStyle.fontStyle = FontStyle.Bold;
             warningStyle.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(barX, barY - 58, barWidth, 20),
-                $"RECHARGE NOW! {grace:F1}s", warningStyle);
+                $"¡RECARGA AHORA! {grace:F1}s", warningStyle);
         }
 
         // Background
@@ -124,7 +121,7 @@ public class ActionFeedback : MonoBehaviour
         GUI.color = new Color(1f, 1f, 1f, 0.6f);
         actionStyle.fontSize = 11;
         GUI.Label(new Rect(barX, barY - 18, barWidth, 20),
-            "— CHARGE —", actionStyle);
+            "— CARGA —", actionStyle);
         GUI.Label(new Rect(barX, barY + barHeight + 2, 30, 16),
             "-", actionStyle);
         GUI.Label(new Rect(barX + barWidth - 30, barY + barHeight + 2, 30, 16),
@@ -143,7 +140,7 @@ public class ActionFeedback : MonoBehaviour
         actionStyle.fontSize = 11;
         GUI.Label(new Rect(barX, barY + barHeight + 18, barWidth, 16),
             absorber.IsAbsorbModeActive() ?
-            "[Q] ABSORB MODE ON" : "[Q] ABSORB / [LMB] GRAPPLE",
+            "[Q] MODO ABSORCIÓN ON" : "[Q] ABSORBER / [LMB] GRAPPLE",
             actionStyle);
 
         // Jump counter
@@ -153,7 +150,7 @@ public class ActionFeedback : MonoBehaviour
             GUI.color = new Color(1f, 1f, 1f, 0.6f);
             actionStyle.fontSize = 11;
             GUI.Label(new Rect(barX, barY + barHeight + 34, barWidth, 16),
-                $"Jumps: {pc.jumpsRemaining}/{pc.maxJumps}",
+                $"Saltos: {pc.jumpsRemaining}/{pc.maxJumps}",
                 actionStyle);
         }
     }

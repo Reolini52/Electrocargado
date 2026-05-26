@@ -5,7 +5,7 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed = 8f;
-    public float airControlMultiplier = 0.4f; // less control in air
+    public float airControlMultiplier = 0.4f;
 
     [Header("Jump")]
     public float jumpForce = 20f;
@@ -16,16 +16,34 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private Animator animator;
     private bool wasGrounded;
+    private float normalGravity;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         jumpsRemaining = maxJumps;
+        normalGravity = rb.gravityScale;
     }
 
     void Update()
     {
+        // Freeze player completely during Gandalf
+        if (GandalfNPC.isGandalfActive)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.gravityScale = 0f;
+            if (animator != null)
+            {
+                animator.SetBool("IsRunning", false);
+                animator.SetBool("IsJumping", false);
+            }
+            return;
+        }
+
+        // Restore gravity if it was frozen
+        rb.gravityScale = normalGravity;
+
         CheckGround();
         HandleMovement();
         HandleJump();
@@ -40,20 +58,19 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
             input = 1f;
 
-        // Less air control
         float control = isGrounded ? 1f : airControlMultiplier;
 
         float targetSpeed = input * moveSpeed;
         float speedDiff = targetSpeed - rb.linearVelocity.x;
         float accelRate = (Mathf.Abs(targetSpeed) > 0.01f) ? 6f : 10f;
 
-        rb.AddForce(Vector2.right * speedDiff * accelRate * control, ForceMode2D.Force);
+        rb.AddForce(Vector2.right * speedDiff * accelRate * control,
+            ForceMode2D.Force);
         rb.linearVelocity = new Vector2(
             Mathf.Clamp(rb.linearVelocity.x, -moveSpeed, moveSpeed),
             rb.linearVelocity.y
         );
 
-        // Flip sprite
         if (rb.linearVelocity.x > 0.1f)
             transform.localScale = new Vector3(
                 Mathf.Abs(transform.localScale.x),
@@ -74,12 +91,11 @@ public class PlayerController : MonoBehaviour
             if (!isGrounded && jumpsRemaining == maxJumps)
                 return;
 
-            // Second jump requires charge
             if (!isGrounded && jumpsRemaining < maxJumps)
             {
                 ChargeResource cr = GetComponent<ChargeResource>();
                 if (cr == null || cr.IsNeutral())
-                    return; // cant double jump without charge
+                    return;
             }
 
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
@@ -110,11 +126,7 @@ public class PlayerController : MonoBehaviour
         if (animator == null) return;
 
         float speed = Mathf.Abs(rb.linearVelocity.x);
-
-        // Only run animation when grounded AND moving
         animator.SetBool("IsRunning", isGrounded && speed > 0.1f);
-
-        // Jump when in air
         animator.SetBool("IsJumping", !isGrounded);
     }
 
