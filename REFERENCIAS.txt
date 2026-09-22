@@ -1,0 +1,14 @@
+REFERENCIAS
+
+Abella Peña, L. E., & García Martínez, Á. (2011). El uso de videojuegos para la enseñanza de las ciencias, nuevos desafíos al papel docente. Universidad Distrital Francisco José de Caldas.
+
+Ab Patar, M. N. A., Ahmad Nazri, N. A., Nazlan, R., Embong, Z., Ahmad, S., & Mahmud, J. (2024). Gamification and its impact on learning fundamental physics: A meta-analysis. International Journal of Academic Research in Business and Social Sciences, 14(9), 1555–1579. https://doi.org/10.6007/IJARBSS/v14-i9/22701
+
+Anderson, J. L., & Barnett, M. (2013). Learning physics with digital game simulations in middle school science. Journal of Science Education and Technology, 22(6), 914–926. https://doi.org/10.1007/s10956-013-9438-8
+
+Dori, Y. J., & Belcher, J. (2005). How does technology-enabled active learning affect undergraduate students' understanding of electromagnetism concepts? The Journal of the Learning Sciences, 14(2), 243–279. https://doi.org/10.1207/S15327809JLS1402_3
+
+Hernández, E., Campos, E., Barniol, P., & Zavala, G. (2022). Phenomenographic analysis of students’ conceptual understanding of electric and magnetic interactions. Physical Review Physics Education Research, 18(2), 020101. https://doi.org/10.1103/PhysRevPhysEducRes.18.020101
+
+Rutten, N., van Joolingen, W. R., & van der Veen, J. T. (2012). The learning effects of computer simulations in science education. Computers & Education, 58(1), 136–153. https://doi.org/10.1016/j.compedu.2011.07.017
+
