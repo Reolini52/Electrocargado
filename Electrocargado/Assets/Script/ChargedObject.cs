@@ -1,44 +1,98 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/// <summary>
+/// Objeto de carga estática/fuente electrostática (Ley de Coulomb).
+/// Refactorizado con registro estático libre de basura, cero GetComponent/Find en Update(),
+/// clamping de seguridad r_min y F_max en FixedUpdate(), y emisión en vivo a GameEvents.cs.
+/// </summary>
 public class ChargedObject : MonoBehaviour
 {
-    [Header("Charge")]
+    public static readonly List<ChargedObject> ActiveChargedObjects = new List<ChargedObject>(32);
+
+    [Header("Parámetros Electrostáticos (Ley de Coulomb)")]
+    [Tooltip("Carga eléctrica q_1 de esta fuente.")]
+    [Range(-5f, 5f)]
     public float charge = 1f;
+
+    [Tooltip("Radio máximo de alcance del campo eléctrico.")]
+    [Range(1f, 30f)]
     public float effectRadius = 10f;
+
+    [Tooltip("Constante electrostática efectiva k_e para la Ley de Coulomb.")]
+    [Range(5f, 200f)]
     public float forceStrength = 50f;
 
-    [Header("Settings")]
+    [Header("Clamping de Seguridad Física")]
+    [Tooltip("Distancia mínima r_min para evitar división por cero o fuerzas infinitas.")]
+    [SerializeField, Range(0.25f, 2.5f)]
+    private float minSafeDistance = 0.7f;
+
+    [Tooltip("Magnitud máxima de fuerza electrostática aplicable al Rigidbody2D.")]
+    [SerializeField, Range(5f, 100f)]
+    private float maxForceClamp = 30f;
+
+    [Header("Propiedades del Material")]
+    [Tooltip("Si es conductor, permite absorber/transferir carga con THEIA.")]
     public bool isConductor = true;
+
+    [Tooltip("Si es fuente fija, mantiene su carga constante al absorber.")]
     public bool isFixedSource = true;
 
-    [Header("Visual")]
+    [Header("Feedback Visual de Polaridad")]
     public Color positiveColor = new Color(0.3f, 0.6f, 1f);
     public Color negativeColor = new Color(1f, 0.3f, 0.3f);
 
-    [Header("Field Rings")]
+    [Header("Anillos Equipotenciales / Campo")]
     public bool showRings = true;
+    [Range(1, 6)]
     public int ringCount = 3;
 
+    // Referencias cacheadas (Cero GetComponent/Find en Update)
     private SpriteRenderer sr;
     private ChargeResource player;
     private Rigidbody2D playerRb;
-    private List<LineRenderer> fieldRings = new List<LineRenderer>();
+    private readonly List<LineRenderer> fieldRings = new List<LineRenderer>();
+
+    void Awake()
+    {
+        sr = GetComponent<SpriteRenderer>();
+        if (GetComponent<CoulombForce2D>() == null)
+        {
+            CoulombForce2D cf = gameObject.AddComponent<CoulombForce2D>();
+            cf.CurrentCharge = charge;
+        }
+    }
+
+    void OnEnable()
+    {
+        if (!ActiveChargedObjects.Contains(this))
+            ActiveChargedObjects.Add(this);
+    }
+
+    void OnDisable()
+    {
+        ActiveChargedObjects.Remove(this);
+    }
 
     void Start()
     {
-        sr = GetComponent<SpriteRenderer>();
-        player = Object.FindAnyObjectByType<ChargeResource>();
-        if (player != null)
-            playerRb = player.GetComponent<Rigidbody2D>();
-
+        CachePlayerReferencesOnce();
         if (showRings) CreateFieldRings();
         UpdateVisual();
     }
 
+    private void CachePlayerReferencesOnce()
+    {
+        player = Object.FindAnyObjectByType<ChargeResource>();
+        if (player != null)
+        {
+            playerRb = player.GetComponent<Rigidbody2D>();
+        }
+    }
+
     void CreateFieldRings()
     {
-        // Get object dimensions
         float scaleX = transform.localScale.x * 0.5f;
         float scaleY = transform.localScale.y * 0.5f;
 
@@ -59,7 +113,6 @@ public class ChargedObject : MonoBehaviour
             int segments = 32;
             lr.positionCount = segments;
 
-            // Offset grows with each ring
             float offsetX = scaleX + 0.3f + i * 0.4f;
             float offsetY = scaleY + 0.3f + i * 0.4f;
 
@@ -81,13 +134,6 @@ public class ChargedObject : MonoBehaviour
 
     void Update()
     {
-        if (player == null)
-        {
-            player = Object.FindAnyObjectByType<ChargeResource>();
-            if (player != null)
-                playerRb = player.GetComponent<Rigidbody2D>();
-        }
-
         UpdateRings();
     }
 
@@ -95,27 +141,24 @@ public class ChargedObject : MonoBehaviour
     {
         if (!showRings) return;
 
-        float dist = player != null ?
-            Vector2.Distance(transform.position, player.transform.position)
+        float dist = player != null
+            ? Vector2.Distance(transform.position, player.transform.position)
             : float.MaxValue;
 
-        bool inRange = dist < effectRadius && !player.IsNeutral();
+        bool inRange = player != null && dist < effectRadius && !player.IsNeutral();
 
         for (int i = 0; i < fieldRings.Count; i++)
         {
-            float pulse = Mathf.PingPong(
-                Time.time * 0.8f + i * 0.5f, 1f);
-
+            float pulse = Mathf.PingPong(Time.time * 0.8f + i * 0.5f, 1f);
             float alpha = inRange ? pulse * 0.6f : pulse * 0.25f;
 
-            Color ringColor = charge > 0 ?
-                new Color(0.3f, 0.6f, 1f, alpha) :
-                new Color(1f, 0.3f, 0.3f, alpha);
+            Color ringColor = charge > 0
+                ? new Color(0.3f, 0.6f, 1f, alpha)
+                : new Color(1f, 0.3f, 0.3f, alpha);
 
             fieldRings[i].startColor = ringColor;
             fieldRings[i].endColor = ringColor;
 
-            // Update positions
             int segments = fieldRings[i].positionCount;
             float offsetX = transform.localScale.x * 0.5f + 0.3f + i * 0.4f;
             float offsetY = transform.localScale.y * 0.5f + 0.3f + i * 0.4f;
@@ -138,23 +181,42 @@ public class ChargedObject : MonoBehaviour
         if (player == null || playerRb == null) return;
         if (player.IsNeutral()) return;
 
-        float dist = Vector2.Distance(
-            transform.position, player.transform.position);
-        if (dist > effectRadius || dist < 0.1f) return;
+        Vector2 sourcePos = transform.position;
+        Vector2 targetPos = player.transform.position;
+        Vector2 displacement = targetPos - sourcePos;
+        float rawDist = displacement.magnitude;
 
-        float normalizedDist = dist / effectRadius;
-        float forceMag = forceStrength * (1f - normalizedDist)
-            / (dist * dist + 0.5f);
-        forceMag = Mathf.Clamp(forceMag, 2f, 30f);
+        if (rawDist > effectRadius || rawDist < 0.05f) return;
 
-        Vector2 dirToPlayer = (player.transform.position
-            - transform.position).normalized;
-        float chargeProduct = charge * player.GetCharge();
+        // Clamping de seguridad en distancia mínima r_min para evitar singularidad 1/r^2
+        float clampedR = Mathf.Max(rawDist, minSafeDistance);
+        Vector2 rHat = displacement / rawDist;
 
-        if (chargeProduct > 0)
-            playerRb.AddForce(dirToPlayer * forceMag);
-        else
-            playerRb.AddForce(-dirToPlayer * forceMag);
+        float q1 = charge;
+        float q2 = player.GetCharge();
+        float chargeProduct = q1 * q2;
+
+        // Modelo Matemático Oficial: Ley de Coulomb F_e = k_e * |q1 * q2| / r^2
+        float rawCoulombMag = forceStrength * Mathf.Abs(chargeProduct) / (clampedR * clampedR);
+        float forceMag = Mathf.Clamp(rawCoulombMag, 0.5f, maxForceClamp);
+
+        // Si q1 * q2 > 0 -> Repulsión (+rHat saliente); si q1 * q2 < 0 -> Atracción (-rHat entrante)
+        bool isAttractive = chargeProduct < 0f;
+        Vector2 forceVector = isAttractive ? (-rHat * forceMag) : (rHat * forceMag);
+
+        playerRb.AddForce(forceVector, ForceMode2D.Force);
+
+        // Emitir telemetría en tiempo real al Bus de Eventos para el Debug Overlay (Tecla V)
+        GameEvents.RaiseForceApplied(new CoulombForceData(
+            sourcePos,
+            targetPos,
+            q1,
+            q2,
+            clampedR,
+            forceStrength,
+            forceVector,
+            isAttractive
+        ));
     }
 
     public void UpdateVisual()

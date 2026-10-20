@@ -5,6 +5,7 @@ public class ActionFeedback : MonoBehaviour
 {
     private ChargeResource chargeResource;
     private ChargeAbsorber absorber;
+    private PlayerController playerController;
     private Camera cam;
 
     private string currentAction = "";
@@ -17,6 +18,7 @@ public class ActionFeedback : MonoBehaviour
     {
         chargeResource = GetComponent<ChargeResource>();
         absorber = GetComponent<ChargeAbsorber>();
+        playerController = GetComponent<PlayerController>();
         cam = Camera.main;
     }
 
@@ -65,7 +67,7 @@ public class ActionFeedback : MonoBehaviour
 
     void OnGUI()
     {
-        if (GandalfNPC.isGandalfActive) return;
+        if (GandalfNPC.isGandalfActive || GameEvents.IsCleanHudHidden) return;
 
         if (actionStyle == null)
         {
@@ -140,17 +142,16 @@ public class ActionFeedback : MonoBehaviour
         actionStyle.fontSize = 11;
         GUI.Label(new Rect(barX, barY + barHeight + 18, barWidth, 16),
             absorber.IsAbsorbModeActive() ?
-            "[Q] MODO ABSORCIÓN ON" : "[Q] ABSORBER / [LMB] GRAPPLE",
+            "[Q / E] MODO ABSORCIÓN ON" : "[Q / E] ABSORBER / [LMB] GRAPPLE",
             actionStyle);
 
-        // Jump counter
-        PlayerController pc = GetComponent<PlayerController>();
-        if (pc != null)
+        // Jump counter (Cero GetComponent en OnGUI/Update)
+        if (playerController != null)
         {
             GUI.color = new Color(1f, 1f, 1f, 0.6f);
             actionStyle.fontSize = 11;
             GUI.Label(new Rect(barX, barY + barHeight + 34, barWidth, 16),
-                $"Saltos: {pc.jumpsRemaining}/{pc.maxJumps}",
+                $"Saltos: {playerController.jumpsRemaining}/{playerController.maxJumps}",
                 actionStyle);
         }
     }

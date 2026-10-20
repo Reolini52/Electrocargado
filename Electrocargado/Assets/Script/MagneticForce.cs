@@ -1,5 +1,9 @@
 using UnityEngine;
 
+/// <summary>
+/// Fuerza Magnética (Lorentz: Fm = q · v × B) generada por el movimiento de THEIA
+/// sobre objetos cargados dinámicos cercanos.
+/// </summary>
 public class MagneticForce : MonoBehaviour
 {
     [Header("Magnetic Settings")]
@@ -17,35 +21,46 @@ public class MagneticForce : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (chargeResource == null || rb == null) return;
         if (chargeResource.IsNeutral()) return;
-        if (rb.linearVelocity.magnitude < 0.5f) return;
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(
-            transform.position, effectRadius);
+        float speed = rb.linearVelocity.magnitude;
+        if (speed < 0.5f) return;
 
-        foreach (var hit in hits)
+        var dynList = DynamicChargedObject.ActiveDynamicObjects;
+        Vector2 myPos = transform.position;
+        Vector2 playerVel = rb.linearVelocity;
+        Vector2 perpendicular = new Vector2(-playerVel.normalized.y, playerVel.normalized.x);
+
+        for (int i = 0; i < dynList.Count; i++)
         {
-            if (hit.gameObject == gameObject) continue;
-
-            DynamicChargedObject dynObj =
-                hit.GetComponent<DynamicChargedObject>();
+            DynamicChargedObject dynObj = dynList[i];
             if (dynObj == null || Mathf.Abs(dynObj.charge) < 0.1f) continue;
 
-            Rigidbody2D dynRb = hit.GetComponent<Rigidbody2D>();
+            float dist = Vector2.Distance(myPos, dynObj.transform.position);
+            if (dist > effectRadius) continue;
+
+            Rigidbody2D dynRb = dynObj.GetComponent<Rigidbody2D>();
             if (dynRb == null) continue;
 
-            Vector2 playerVel = rb.linearVelocity;
-            Vector2 perpendicular = new Vector2(
-                -playerVel.normalized.y,
-                playerVel.normalized.x
-            );
+            float qPlayer = chargeResource.GetCharge();
+            float forceScalar = qPlayer * dynObj.charge * speed * magneticStrength;
+            Vector2 magForceVec = perpendicular * forceScalar;
 
-            float force = chargeResource.GetCharge()
-                * dynObj.charge
-                * playerVel.magnitude
-                * magneticStrength;
+            dynRb.AddForce(magForceVec, ForceMode2D.Force);
 
-            dynRb.AddForce(perpendicular * force);
+            // Corriente equivalente de carga puntual en movimiento: I_eq = |q| * v / r
+            float eqCurrentI = Mathf.Abs(qPlayer) * speed / Mathf.Max(dist, 0.5f);
+            float eqFieldB = magneticStrength * eqCurrentI;
+
+            GameEvents.RaiseMagneticForceApplied(new CurrentMagneticData(
+                myPos,
+                dynObj.transform.position,
+                eqCurrentI,
+                eqFieldB,
+                dist,
+                magForceVec
+            ));
         }
     }
 }

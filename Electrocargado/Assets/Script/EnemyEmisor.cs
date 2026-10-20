@@ -56,32 +56,32 @@ public class EnemyEmisor : MonoBehaviour
         if (playerCharge.IsNeutral()) return;
 
         float dist = Vector2.Distance(transform.position, player.position);
-        Debug.Log($"Emisor dist:{dist} radius:{chargeEffectRadius} force:{chargeForceStrength} playerCharge:{playerCharge.GetCharge()}");
         if (dist > chargeEffectRadius || dist < 0.1f) return;
 
-        float normalizedDist = dist / chargeEffectRadius;
-        // Simpler stronger force
-        float forceMag = chargeForceStrength * playerCharge.GetCharge()
-            * charge / (dist + 0.5f);
-        forceMag = Mathf.Clamp(forceMag, 0f, 50f);
+        float clampedR = Mathf.Max(dist, 0.7f);
+        float q1 = charge;
+        float q2 = playerCharge.GetCharge();
+        float chargeProduct = q1 * q2;
 
-        // Direction FROM player TO emisor
+        float forceMag = chargeForceStrength * Mathf.Abs(chargeProduct) / (clampedR * clampedR);
+        forceMag = Mathf.Clamp(forceMag, 0.5f, 40f);
+
         Vector2 dirAwayFromPlayer = (transform.position - player.position).normalized;
-        float chargeProduct = charge * playerCharge.GetCharge();
-
         isAttracted = chargeProduct < 0;
 
         if (chargeProduct > 0)
         {
-            // Same charge = repel emisor AWAY from player
             rb.AddForce(dirAwayFromPlayer * forceMag);
             playerRb.AddForce(-dirAwayFromPlayer * forceMag);
+            GameEvents.RaiseForceApplied(new CoulombForceData(
+                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, -dirAwayFromPlayer * forceMag, false));
         }
         else
         {
-            // Opposite = attract emisor TOWARD player
             rb.AddForce(-dirAwayFromPlayer * forceMag);
             playerRb.AddForce(dirAwayFromPlayer * forceMag);
+            GameEvents.RaiseForceApplied(new CoulombForceData(
+                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, dirAwayFromPlayer * forceMag, true));
         }
     }
 
@@ -96,15 +96,13 @@ public class EnemyEmisor : MonoBehaviour
 
         if (dist <= detectionRadius)
         {
-            // Only retreat if player is too close AND same charge
-            // Otherwise just hover in place and shoot
             float chargeProduct = charge * playerCharge.GetCharge();
             bool sameCharge = chargeProduct > 0 && !playerCharge.IsNeutral();
 
             if (dist < retreatRadius && !sameCharge)
                 Retreat();
             else
-                Hover(); // just float, let Coulomb handle the push/pull
+                Hover();
 
             if (shootTimer <= 0f)
             {
@@ -145,7 +143,7 @@ public class EnemyEmisor : MonoBehaviour
         proj.transform.position = transform.position;
 
         SpriteRenderer projSr = proj.AddComponent<SpriteRenderer>();
-        projSr.sprite = GetComponent<SpriteRenderer>().sprite;
+        projSr.sprite = sr != null ? sr.sprite : null;
         projSr.color = charge > 0 ?
             new Color(0.3f, 0.6f, 1f, 0.8f) :
             new Color(1f, 0.3f, 0.3f, 0.8f);

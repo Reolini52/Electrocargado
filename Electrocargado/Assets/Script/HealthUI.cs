@@ -13,7 +13,7 @@ public class HealthUI : MonoBehaviour
 
     void OnGUI()
     {
-        if (GandalfNPC.isGandalfActive) return;
+        if (GandalfNPC.isGandalfActive || GameEvents.IsCleanHudHidden) return;
 
         if (playerHealth == null) return;
         if (heartStyle == null) InitStyles();
