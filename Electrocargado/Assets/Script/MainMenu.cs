@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
 public class MainMenu : MonoBehaviour
 {
     void Start()
@@ -7,14 +8,17 @@ public class MainMenu : MonoBehaviour
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
     }
+
     public void Sandbox()
     {
-        SceneManager.LoadSceneAsync(0);
+        SceneManager.LoadSceneAsync("SceneTesting");
     }
+
     public void LevelMenu()
     {
-        SceneManager.LoadSceneAsync(1);
+        SceneManager.LoadSceneAsync("Main Menu");
     }
+
     public void QuitGame()
     {
         Application.Quit();
