@@ -211,7 +211,10 @@ public class GandalfNPC : MonoBehaviour
 
             if (!string.IsNullOrEmpty(nextSceneName))
             {
-                SceneManager.LoadScene(nextSceneName);
+                string targetScene = nextSceneName == "Level2" ? "Level 2" :
+                                     (nextSceneName == "Level3" || nextSceneName == "Level 3") ? "Level 4" :
+                                     nextSceneName == "Level4" ? "Level 4" : nextSceneName;
+                SceneManager.LoadScene(targetScene);
             }
         }
         else

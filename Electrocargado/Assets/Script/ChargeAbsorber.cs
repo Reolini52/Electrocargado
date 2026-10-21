@@ -61,34 +61,55 @@ public class ChargeAbsorber : MonoBehaviour
 
     void TryAbsorb(Vector2 mouseWorld)
     {
-        Collider2D hit = Physics2D.OverlapCircle(mouseWorld, 2.5f, ignoreLayers);
-        if (hit == null || hit.gameObject == gameObject) return;
-        if (hit.CompareTag("Player")) return;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(mouseWorld, 2.8f, ignoreLayers);
 
-        float dist = Vector2.Distance(transform.position, hit.transform.position);
-        if (dist > absorbRange) return;
+        ChargedObject bestFixed = null;
+        DynamicChargedObject bestDyn = null;
+        float bestMouseDist = float.MaxValue;
 
-        hit.TryGetComponent(out ChargedObject fixedObj);
-        hit.TryGetComponent(out DynamicChargedObject dynObj);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D candidate = hits[i];
+            if (candidate == null || candidate.gameObject == gameObject || candidate.CompareTag("Player")) continue;
+
+            float distFromPlayer = Vector2.Distance(transform.position, candidate.transform.position);
+            if (distFromPlayer > absorbRange) continue;
+
+            candidate.TryGetComponent(out ChargedObject fixedObj);
+            candidate.TryGetComponent(out DynamicChargedObject dynObj);
+
+            bool validFixed = fixedObj != null && fixedObj.isConductor;
+            bool validDyn = dynObj != null && dynObj.isConductor && Mathf.Abs(dynObj.charge) > 0.01f;
+
+            if (!validFixed && !validDyn) continue;
+
+            float distToMouse = Vector2.Distance(mouseWorld, candidate.transform.position);
+            if (distToMouse < bestMouseDist)
+            {
+                bestMouseDist = distToMouse;
+                bestFixed = validFixed ? fixedObj : null;
+                bestDyn = validDyn ? dynObj : null;
+            }
+        }
 
         float resistance = 1f - Mathf.Abs(chargeResource.GetCharge());
         float amount = absorbRate * resistance * Time.deltaTime;
 
-        if (fixedObj != null && fixedObj.isConductor)
+        if (bestFixed != null)
         {
-            float chargeSign = Mathf.Sign(fixedObj.charge);
+            float chargeSign = Mathf.Sign(bestFixed.charge);
             float delta = chargeSign * amount;
             chargeResource.AddCharge(delta);
-            GameEvents.RaiseChargeTransferred(delta, fixedObj.transform.position);
+            GameEvents.RaiseChargeTransferred(delta, bestFixed.transform.position);
         }
-        else if (dynObj != null && dynObj.isConductor && Mathf.Abs(dynObj.charge) > 0.01f)
+        else if (bestDyn != null)
         {
-            float chargeSign = Mathf.Sign(dynObj.charge);
+            float chargeSign = Mathf.Sign(bestDyn.charge);
             float delta = chargeSign * amount;
             chargeResource.AddCharge(delta);
-            dynObj.charge = Mathf.MoveTowards(dynObj.charge, 0f, amount * 0.4f);
-            dynObj.UpdateVisual();
-            GameEvents.RaiseChargeTransferred(delta, dynObj.transform.position);
+            bestDyn.charge = Mathf.MoveTowards(bestDyn.charge, 0f, amount * 0.4f);
+            bestDyn.UpdateVisual();
+            GameEvents.RaiseChargeTransferred(delta, bestDyn.transform.position);
         }
     }
 
@@ -96,34 +117,68 @@ public class ChargeAbsorber : MonoBehaviour
     {
         if (chargeResource.IsNeutral()) return;
 
-        Collider2D hit = Physics2D.OverlapCircle(targetPos, 2.5f, ignoreLayers);
-        if (hit == null || hit.gameObject == gameObject) return;
-        if (hit.CompareTag("Player")) return;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(targetPos, 2.8f, ignoreLayers);
 
-        float dist = Vector2.Distance(transform.position, hit.transform.position);
-        if (dist > absorbRange) return;
+        CapacitorPlateNode bestPlate = null;
+        ChargedObject bestFixed = null;
+        DynamicChargedObject bestDyn = null;
+        float bestMouseDist = float.MaxValue;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D candidate = hits[i];
+            if (candidate == null || candidate.gameObject == gameObject || candidate.CompareTag("Player")) continue;
+
+            float distFromPlayer = Vector2.Distance(transform.position, candidate.transform.position);
+            if (distFromPlayer > absorbRange) continue;
+
+            candidate.TryGetComponent(out CapacitorPlateNode plateNode);
+            candidate.TryGetComponent(out ChargedObject fixedObj);
+            candidate.TryGetComponent(out DynamicChargedObject dynObj);
+
+            bool validPlate = plateNode != null && plateNode.isActiveInCurrentPhase && !plateNode.IsCharged;
+            bool validFixed = fixedObj != null && !fixedObj.isFixedSource;
+            bool validDyn = dynObj != null;
+
+            if (!validPlate && !validFixed && !validDyn) continue;
+
+            float distToMouse = Vector2.Distance(targetPos, candidate.transform.position);
+            if (distToMouse < bestMouseDist)
+            {
+                bestMouseDist = distToMouse;
+                bestPlate = validPlate ? plateNode : null;
+                bestFixed = (!validPlate && validFixed) ? fixedObj : null;
+                bestDyn = (!validPlate && !validFixed && validDyn) ? dynObj : null;
+            }
+        }
 
         float currentCharge = chargeResource.GetCharge();
         float amount = expelRate * Time.deltaTime;
 
-        hit.TryGetComponent(out ChargedObject fixedObj);
-        hit.TryGetComponent(out DynamicChargedObject dynObj);
-
-        if (fixedObj != null && !fixedObj.isFixedSource)
+        if (bestPlate != null)
         {
             float delta = currentCharge > 0 ? amount : -amount;
-            fixedObj.charge += delta;
-            fixedObj.UpdateVisual();
-            chargeResource.AddCharge(-delta);
-            GameEvents.RaiseChargeTransferred(-delta, fixedObj.transform.position);
+            if (bestPlate.TryInjectCharge(delta))
+            {
+                chargeResource.AddCharge(-delta * 0.65f);
+                GameEvents.RaiseChargeTransferred(-delta, bestPlate.transform.position);
+            }
         }
-        else if (dynObj != null)
+        else if (bestFixed != null)
         {
             float delta = currentCharge > 0 ? amount : -amount;
-            dynObj.charge += delta;
-            dynObj.UpdateVisual();
+            bestFixed.charge += delta;
+            bestFixed.UpdateVisual();
             chargeResource.AddCharge(-delta);
-            GameEvents.RaiseChargeTransferred(-delta, dynObj.transform.position);
+            GameEvents.RaiseChargeTransferred(-delta, bestFixed.transform.position);
+        }
+        else if (bestDyn != null)
+        {
+            float delta = currentCharge > 0 ? amount : -amount;
+            bestDyn.charge += delta;
+            bestDyn.UpdateVisual();
+            chargeResource.AddCharge(-delta);
+            GameEvents.RaiseChargeTransferred(-delta, bestDyn.transform.position);
         }
     }
 

@@ -5,6 +5,8 @@ public class ChargeDetector : MonoBehaviour
     [Header("Requirements")]
     public float requiredCharge = 1f;
     public float chargeThreshold = 0.3f;
+    [Tooltip("Si es true, solo un objeto dinámico cargado (llave) puede activar este receptor.")]
+    public bool requireDynamicObjectKey = false;
 
     [Header("Connections")]
     public GameObject door;
@@ -21,6 +23,7 @@ public class ChargeDetector : MonoBehaviour
 
     private SpriteRenderer sr;
     private bool isActivated = false;
+    private DynamicChargedObject currentDynamicOnPad;
 
     void Start()
     {
@@ -30,22 +33,45 @@ public class ChargeDetector : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log($"Detector hit: {other.name} hasScript: {other.GetComponent<DynamicChargedObject>() != null}");
-        DynamicChargedObject dynObj = other.GetComponent<DynamicChargedObject>();
-        ChargeResource playerCharge = other.GetComponent<ChargeResource>();
+        EvaluateCollider(other);
+    }
 
-        if (dynObj != null)
+    void OnTriggerStay2D(Collider2D other)
+    {
+        if (!isActivated)
+        {
+            EvaluateCollider(other);
+        }
+    }
+
+    void EvaluateCollider(Collider2D other)
+    {
+        if (other.TryGetComponent(out DynamicChargedObject dynObj))
+        {
+            currentDynamicOnPad = dynObj;
             CheckCharge(dynObj.charge);
-        else if (playerCharge != null)
+        }
+        else if (!requireDynamicObjectKey && other.TryGetComponent(out ChargeResource playerCharge))
+        {
             CheckCharge(playerCharge.GetCharge());
+        }
     }
 
     void OnTriggerExit2D(Collider2D other)
     {
-        DynamicChargedObject dynObj = other.GetComponent<DynamicChargedObject>();
-        ChargeResource playerCharge = other.GetComponent<ChargeResource>();
+        if (other.TryGetComponent(out DynamicChargedObject dynObj))
+        {
+            if (currentDynamicOnPad == dynObj)
+                currentDynamicOnPad = null;
+        }
 
-        if (dynObj != null || playerCharge != null)
+        // Si todavía queda una llave dinámica válida sobre el receptor, mantener la puerta abierta
+        if (currentDynamicOnPad != null && IsChargeValid(currentDynamicOnPad.charge))
+        {
+            return;
+        }
+
+        if (dynObj != null || other.GetComponent<ChargeResource>() != null)
         {
             isActivated = false;
             UpdateVisual(inactiveColor);
@@ -58,13 +84,16 @@ public class ChargeDetector : MonoBehaviour
         }
     }
 
+    bool IsChargeValid(float incomingCharge)
+    {
+        return requiredCharge > 0f
+            ? incomingCharge > chargeThreshold
+            : incomingCharge < -chargeThreshold;
+    }
+
     void CheckCharge(float incomingCharge)
     {
-        bool correct = requiredCharge > 0 ?
-            incomingCharge > chargeThreshold :
-            incomingCharge < -chargeThreshold;
-
-        if (correct)
+        if (IsChargeValid(incomingCharge))
         {
             isActivated = true;
             UpdateVisual(activeColor);
@@ -74,7 +103,7 @@ public class ChargeDetector : MonoBehaviour
             // Check if partner is also activated
             TryActivateRod();
         }
-        else
+        else if (Mathf.Abs(incomingCharge) > 0.05f)
         {
             UpdateVisual(wrongChargeColor);
         }
@@ -89,8 +118,6 @@ public class ChargeDetector : MonoBehaviour
 
         if (partnerActive)
         {
-            // Both terminals active = current flows
-            // Direction depends on which is + and which is -
             connectedRod.ActivateCurrent(true, isPositiveTerminal);
         }
     }
@@ -104,29 +131,33 @@ public class ChargeDetector : MonoBehaviour
 
     void OnGUI()
     {
-        if (Camera.main == null) return;
+        if (GameEvents.IsCleanHudHidden || Camera.main == null) return;
 
         Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position);
 
-        // Only draw if object is visible on screen
-        if (screenPos.z < 0) return; // behind camera
+        if (screenPos.z < 0) return;
         if (screenPos.x < 0 || screenPos.x > Screen.width) return;
         if (screenPos.y < 0 || screenPos.y > Screen.height) return;
 
         screenPos.y = Screen.height - screenPos.y;
 
         GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
+        style.fontSize = requireDynamicObjectKey ? 14 : 20;
         style.fontStyle = FontStyle.Bold;
         style.alignment = TextAnchor.MiddleCenter;
 
-        GUI.color = requiredCharge > 0 ?
-            new Color(0.3f, 0.6f, 1f) :
-            new Color(1f, 0.3f, 0.3f);
+        GUI.color = isActivated
+            ? new Color(0.25f, 1f, 0.5f)
+            : (requiredCharge > 0 ? new Color(0.3f, 0.6f, 1f) : new Color(1f, 0.3f, 0.3f));
+
+        string symbol = requiredCharge > 0 ? "⊕" : "⊖";
+        string text = requireDynamicObjectKey
+            ? (isActivated ? $"{symbol} LLAVE ✓" : $"Receptor {symbol}")
+            : symbol;
 
         GUI.Label(
-            new Rect(screenPos.x - 20, screenPos.y - 30, 40, 30),
-            requiredCharge > 0 ? "⊕" : "⊖",
+            new Rect(screenPos.x - 45, screenPos.y - 32, 90, 30),
+            text,
             style
         );
     }

@@ -263,11 +263,21 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        isGrounded = Physics2D.OverlapCircle(
+        Collider2D[] hits = Physics2D.OverlapCircleAll(
             groundCheck.position,
             groundCheckRadius,
             groundLayerMask
-        ) != null;
+        );
+
+        isGrounded = false;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i] != null && !hits[i].isTrigger && hits[i].gameObject != gameObject)
+            {
+                isGrounded = true;
+                break;
+            }
+        }
 
         if (isGrounded && !wasGrounded)
         {
@@ -279,15 +289,28 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyHorizontalPhysics()
     {
+        bool inMagneticField = FieldZone.IsPlayerInAnyField;
         float control = isGrounded ? 1f : airControlMultiplier;
         float targetSpeed = horizontalInput * moveSpeed;
         float speedDiff = targetSpeed - rb.linearVelocity.x;
-        float accelRate = (Mathf.Abs(targetSpeed) > 0.01f) ? accelerationRate : decelerationRate;
+
+        // Si está en el aire o dentro de un campo magnético y no presiona dirección,
+        // no frenar artificialmente (dejar que la Fuerza de Lorentz / Coulomb curve la trayectoria)
+        float accelRate;
+        if (Mathf.Abs(targetSpeed) > 0.01f)
+        {
+            accelRate = accelerationRate;
+        }
+        else
+        {
+            accelRate = isGrounded ? decelerationRate : (inMagneticField ? 0f : 1.5f);
+        }
 
         rb.AddForce(Vector2.right * (speedDiff * accelRate * control), ForceMode2D.Force);
 
+        float maxAllowedX = (isGrounded && !inMagneticField) ? moveSpeed : moveSpeed * 1.85f;
         rb.linearVelocity = new Vector2(
-            Mathf.Clamp(rb.linearVelocity.x, -moveSpeed, moveSpeed),
+            Mathf.Clamp(rb.linearVelocity.x, -maxAllowedX, maxAllowedX),
             rb.linearVelocity.y
         );
     }

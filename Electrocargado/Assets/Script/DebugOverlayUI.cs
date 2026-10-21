@@ -444,9 +444,9 @@ public class DebugOverlayUI : MonoBehaviour
         GUI.Label(new Rect(x, y, w, 14f), $"Q = {currentPlayerChargeQ:F2} C  |  RC = {rcTimeConstantTau:F1}s ({suelo})", labelStyle);
         y += 16f;
 
-        // 3. Corriente Eléctrica y Magnetismo (CurrentRod / MagneticForce)
+        // 3. Corriente Eléctrica y Magnetismo (Lorentz / CurrentRod / FieldZone)
         GUI.color = new Color(0.4f, 0.85f, 1f, 0.95f);
-        GUI.Label(new Rect(x, y, w, 14f), "Corriente y Magnetismo  I = q·v/L", titleStyle);
+        GUI.Label(new Rect(x, y, w, 14f), "Magnetismo y Lorentz  Fm = q·(v×B)", titleStyle);
         y += 14f;
 
         bool hasMag = (Time.time - lastMagTimestamp) < 0.25f && latestMagData.MagneticForceMag > 0.01f;

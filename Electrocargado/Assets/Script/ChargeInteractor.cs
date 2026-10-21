@@ -17,6 +17,7 @@ public class ChargeInteractor : MonoBehaviour
     private bool isGrappling = false;
     private Vector2 grapplePoint;
     private GameObject grappleTarget;
+    private Rigidbody2D grappleTargetDynamicRb;
     private bool attracting = false;
 
     // Layers to ignore
@@ -46,19 +47,28 @@ public class ChargeInteractor : MonoBehaviour
 
     void Update()
     {
-        if (absorber.IsAbsorbModeActive())
+        if (GandalfNPC.isGandalfActive || Keyboard.current == null || Mouse.current == null) return;
+
+        if (absorber != null && absorber.IsAbsorbModeActive())
         {
             beam.enabled = false;
             isGrappling = false;
+            grappleTarget = null;
+            grappleTargetDynamicRb = null;
             return;
         }
 
-        if (chargeResource.IsNeutral())
+        if (chargeResource == null || chargeResource.IsNeutral())
         {
             beam.enabled = false;
             isGrappling = false;
+            grappleTarget = null;
+            grappleTargetDynamicRb = null;
             return;
         }
+
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return;
 
         Vector2 mouseWorld = cam.ScreenToWorldPoint(
             Mouse.current.position.ReadValue()
@@ -71,6 +81,7 @@ public class ChargeInteractor : MonoBehaviour
             beam.enabled = false;
             isGrappling = false;
             grappleTarget = null;
+            grappleTargetDynamicRb = null;
         }
     }
 
@@ -81,13 +92,21 @@ public class ChargeInteractor : MonoBehaviour
         if (grappleTarget != null)
             grapplePoint = grappleTarget.transform.position;
 
-        Vector2 dirToPoint = (grapplePoint
-            - (Vector2)transform.position).normalized;
+        Vector2 dirToPoint = (grapplePoint - (Vector2)transform.position).normalized;
 
         if (attracting)
+        {
             rb.AddForce(dirToPoint * holdForce, ForceMode2D.Force);
+            // Tercera Ley de Newton sobre objetos dinámicos cargados
+            if (grappleTargetDynamicRb != null)
+                grappleTargetDynamicRb.AddForce(-dirToPoint * (holdForce * 0.75f), ForceMode2D.Force);
+        }
         else
+        {
             rb.AddForce(-dirToPoint * holdForce, ForceMode2D.Force);
+            if (grappleTargetDynamicRb != null)
+                grappleTargetDynamicRb.AddForce(dirToPoint * (holdForce * 0.75f), ForceMode2D.Force);
+        }
 
         beam.SetPosition(0, transform.position);
         beam.SetPosition(1, grapplePoint);
@@ -95,65 +114,87 @@ public class ChargeInteractor : MonoBehaviour
 
     void TryGrapple(Vector2 mousePos)
     {
-        Collider2D hit = Physics2D.OverlapCircle(
-            mousePos, 2.5f, ignoreLayers);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(mousePos, 2.5f, ignoreLayers);
 
-        if (hit != null && hit.gameObject != gameObject)
+        Collider2D bestHit = null;
+        float bestDist = float.MaxValue;
+        float targetCharge = 0f;
+        DynamicChargedObject bestDynamic = null;
+
+        for (int i = 0; i < hits.Length; i++)
         {
-            if (hit.GetComponent<ChargeResource>() != null)
+            Collider2D candidate = hits[i];
+            if (candidate == null || candidate.gameObject == gameObject) continue;
+            if (candidate.GetComponent<ChargeResource>() != null) continue;
+
+            EmisorProjectile proj = candidate.GetComponent<EmisorProjectile>();
+            if (proj != null && chargeResource.GetCharge() * proj.charge > 0.05f)
             {
-                beam.enabled = false;
-                return;
+                proj.ForceDeflectByBeam(transform.position);
             }
 
-            float targetCharge = 0f;
-            bool found = false;
+            ChargedObject f = candidate.GetComponent<ChargedObject>();
+            DynamicChargedObject d = candidate.GetComponent<DynamicChargedObject>();
+            EnemyCorruptor c = candidate.GetComponent<EnemyCorruptor>();
+            EnemyEmisor e = candidate.GetComponent<EnemyEmisor>();
+            PolarousBossController boss = candidate.GetComponent<PolarousBossController>();
 
-            ChargedObject f = hit.GetComponent<ChargedObject>();
-            DynamicChargedObject d = hit.GetComponent<DynamicChargedObject>();
-            EnemyCorruptor c = hit.GetComponent<EnemyCorruptor>();
-            EnemyEmisor e = hit.GetComponent<EnemyEmisor>();
+            bool isChargedTarget = false;
+            float candidateCharge = 0f;
 
-            if (f != null) { targetCharge = f.charge; found = true; }
-            else if (d != null) { targetCharge = d.charge; found = true; }
-            else if (c != null) { targetCharge = c.charge; found = true; }
-            else if (e != null) { targetCharge = e.charge; found = true; }
+            if (f != null) { candidateCharge = f.charge; isChargedTarget = true; }
+            else if (d != null) { candidateCharge = d.charge; isChargedTarget = true; }
+            else if (c != null) { candidateCharge = c.charge; isChargedTarget = true; }
+            else if (e != null) { candidateCharge = e.charge; isChargedTarget = true; }
+            else if (boss != null) { candidateCharge = boss.bossCharge; isChargedTarget = true; }
 
-            if (found)
+            if (!isChargedTarget) continue;
+
+            float distToMouse = Vector2.Distance(mousePos, candidate.transform.position);
+            if (distToMouse < bestDist)
             {
-                float chargeProduct = chargeResource.GetCharge() * targetCharge;
-                attracting = chargeProduct < 0;
-
-                grapplePoint = hit.transform.position;
-                grappleTarget = hit.gameObject;
-
-                if (!isGrappling)
-                {
-                    Vector2 dir = (mousePos
-                        - (Vector2)transform.position).normalized;
-                    Vector2 impulseDir = attracting ? dir : -dir;
-                    rb.AddForce(impulseDir * force, ForceMode2D.Impulse);
-                }
-
-                isGrappling = true;
-
-                beam.enabled = true;
-                beam.SetPosition(0, transform.position);
-                beam.SetPosition(1, grapplePoint);
-
-                Color beamColor = attracting ?
-                    new Color(0.3f, 1f, 0.3f, 0.9f) :
-                    new Color(1f, 0.3f, 0.3f, 0.9f);
-                beam.startColor = beamColor;
-                beam.endColor = new Color(
-                    beamColor.r, beamColor.g, beamColor.b, 0f);
-                return;
+                bestDist = distToMouse;
+                bestHit = candidate;
+                targetCharge = candidateCharge;
+                bestDynamic = d;
             }
+        }
+
+        if (bestHit != null)
+        {
+            float chargeProduct = chargeResource.GetCharge() * targetCharge;
+            attracting = chargeProduct < 0;
+
+            grapplePoint = bestHit.transform.position;
+            grappleTarget = bestHit.gameObject;
+            grappleTargetDynamicRb = bestDynamic != null ? bestDynamic.GetComponent<Rigidbody2D>() : null;
+
+            if (!isGrappling)
+            {
+                Vector2 dir = (mousePos - (Vector2)transform.position).normalized;
+                Vector2 impulseDir = attracting ? dir : -dir;
+                rb.AddForce(impulseDir * force, ForceMode2D.Impulse);
+            }
+
+            isGrappling = true;
+
+            beam.enabled = true;
+            beam.SetPosition(0, transform.position);
+            beam.SetPosition(1, grapplePoint);
+
+            Color beamColor = attracting ?
+                new Color(0.3f, 1f, 0.3f, 0.9f) :
+                new Color(1f, 0.3f, 0.3f, 0.9f);
+            beam.startColor = beamColor;
+            beam.endColor = new Color(
+                beamColor.r, beamColor.g, beamColor.b, 0f);
+            return;
         }
 
         // No charged target found
         isGrappling = false;
         grappleTarget = null;
+        grappleTargetDynamicRb = null;
         beam.enabled = true;
         beam.SetPosition(0, transform.position);
         beam.SetPosition(1, mousePos);
