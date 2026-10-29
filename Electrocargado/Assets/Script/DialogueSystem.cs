@@ -1,6 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
+/// <summary>
+/// Sistema de diálogo en el nivel con soporte de accesibilidad (fuente grande configurable,
+/// fragmentación automática de textos largos en fragmentos cortos y soporte para Gamepad).
+/// </summary>
 public class DialogueSystem : MonoBehaviour
 {
     [Header("Dialogue")]
@@ -9,16 +15,34 @@ public class DialogueSystem : MonoBehaviour
     public float triggerRadius = 3f;
     public bool triggerOnce = true;
     public bool autoAdvance = false;
-    public float autoAdvanceTime = 3f;
+    public float autoAdvanceTime = 3.5f;
 
     [Header("Speaker")]
     public string speakerName = "SYSTEM";
     public Color speakerColor = new Color(0.3f, 0.8f, 1f);
 
+    [Header("Accesibilidad y Tipografía (Inspector)")]
+    [Tooltip("Tamaño de fuente del texto de diálogo.")]
+    [SerializeField, Range(14, 34)]
+    private int dialogueFontSize = 18;
+
+    [Tooltip("Tamaño de fuente del nombre del emisor.")]
+    [SerializeField, Range(14, 34)]
+    private int speakerFontSize = 17;
+
+    [Tooltip("Máximo de caracteres por fragmento. Si una línea es muy larga, se divide automáticamente en varias diapositivas cortas.")]
+    [SerializeField, Range(70, 220)]
+    private int maxCharsPerSlide = 135;
+
+    [Tooltip("Opcional: Referencia a un componente TextMeshPro si se usa Canvas UI.")]
+    [SerializeField]
+    private TMP_Text tmpDialogueText;
+
     [Header("Typewriter")]
-    public float typeSpeed = 0.04f;
+    public float typeSpeed = 0.03f;
     public AudioClip typeSound;
 
+    private string[] activeSlides;
     private int currentLine = 0;
     private bool isShowing = false;
     private bool hasTriggered = false;
@@ -33,6 +57,7 @@ public class DialogueSystem : MonoBehaviour
 
     private GUIStyle textStyle;
     private GUIStyle nameStyle;
+    private int cachedFontSize = -1;
 
     void Start()
     {
@@ -45,6 +70,35 @@ public class DialogueSystem : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
         }
+
+        RebuildShortSlides();
+    }
+
+    private void RebuildShortSlides()
+    {
+        if (lines == null || lines.Length == 0)
+        {
+            activeSlides = new string[0];
+            return;
+        }
+
+        List<string> slides = new List<string>();
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(lines[i])) continue;
+
+            if (lines[i].Length <= maxCharsPerSlide)
+            {
+                slides.Add(lines[i].Trim());
+            }
+            else
+            {
+                string[] chunks = Billboard.SplitIntoShortFragments(lines[i], maxCharsPerSlide, asBullets: false);
+                slides.AddRange(chunks);
+            }
+        }
+
+        activeSlides = slides.ToArray();
     }
 
     void Update()
@@ -69,14 +123,18 @@ public class DialogueSystem : MonoBehaviour
             if (autoTimer <= 0f) AdvanceLine();
         }
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame)
+        bool advancePressed =
+            (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+            (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+
+        if (advancePressed)
             AdvanceLine();
     }
 
     void UpdateTypewriter()
     {
-        if (currentLine >= lines.Length) return;
-        string fullText = lines[currentLine];
+        if (activeSlides == null || currentLine >= activeSlides.Length) return;
+        string fullText = activeSlides[currentLine];
 
         if (displayedChars < fullText.Length)
         {
@@ -86,6 +144,12 @@ public class DialogueSystem : MonoBehaviour
                 displayedChars++;
                 displayedText = fullText.Substring(0, displayedChars);
                 typeTimer = typeSpeed;
+
+                if (tmpDialogueText != null)
+                {
+                    tmpDialogueText.fontSize = dialogueFontSize;
+                    tmpDialogueText.text = displayedText;
+                }
 
                 if (typeSound != null && audioSource != null)
                 {
@@ -98,6 +162,9 @@ public class DialogueSystem : MonoBehaviour
 
     void StartDialogue()
     {
+        RebuildShortSlides();
+        if (activeSlides == null || activeSlides.Length == 0) return;
+
         currentLine = 0;
         isShowing = true;
         displayedText = "";
@@ -108,11 +175,14 @@ public class DialogueSystem : MonoBehaviour
 
     void AdvanceLine()
     {
-        if (currentLine < lines.Length &&
-            displayedChars < lines[currentLine].Length)
+        if (activeSlides == null) return;
+
+        if (currentLine < activeSlides.Length &&
+            displayedChars < activeSlides[currentLine].Length)
         {
-            displayedChars = lines[currentLine].Length;
-            displayedText = lines[currentLine];
+            displayedChars = activeSlides[currentLine].Length;
+            displayedText = activeSlides[currentLine];
+            if (tmpDialogueText != null) tmpDialogueText.text = displayedText;
             return;
         }
 
@@ -122,7 +192,7 @@ public class DialogueSystem : MonoBehaviour
         typeTimer = typeSpeed;
         autoTimer = autoAdvanceTime;
 
-        if (currentLine >= lines.Length)
+        if (currentLine >= activeSlides.Length)
         {
             isShowing = false;
             Time.timeScale = 1f;
@@ -131,48 +201,59 @@ public class DialogueSystem : MonoBehaviour
 
     void OnGUI()
     {
-        if (!isShowing) return;
-        if (textStyle == null) InitStyles();
+        if (!isShowing || activeSlides == null || activeSlides.Length == 0) return;
+        if (textStyle == null || cachedFontSize != dialogueFontSize) InitStyles();
 
-        float w = Screen.width * 0.55f;
-        float h = 70f;
+        float w = Mathf.Min(Screen.width * 0.68f, 760f);
+        float h = 110f;
         float x = Screen.width / 2f - w / 2f;
-        float y = Screen.height - h - 150f;
+        float y = Screen.height - h - 110f;
 
-        GUI.color = new Color(0.05f, 0.05f, 0.15f, 0.92f);
+        GUI.color = new Color(0.04f, 0.05f, 0.16f, 0.95f);
         GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
 
         GUI.color = speakerColor;
-        GUI.DrawTexture(new Rect(x, y, w, 2), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(x, y, w, 2.5f), Texture2D.whiteTexture);
 
         GUI.color = speakerColor;
-        GUI.Label(new Rect(x + 12, y + 6, w, 18), speakerName, nameStyle);
+        GUI.Label(new Rect(x + 16f, y + 8f, w - 32f, 24f),
+            $"{speakerName}  ({currentLine + 1}/{activeSlides.Length})", nameStyle);
 
         GUI.color = Color.white;
-        if (currentLine < lines.Length)
-            GUI.Label(new Rect(x + 12, y + 26, w - 24, h - 32),
-                displayedText, textStyle);
-
-        if (currentLine < lines.Length &&
-            displayedChars >= lines[currentLine].Length)
+        if (currentLine < activeSlides.Length)
         {
-            GUI.color = new Color(1f, 1f, 1f,
+            GUI.Label(new Rect(x + 16f, y + 34f, w - 32f, h - 54f),
+                displayedText, textStyle);
+        }
+
+        if (currentLine < activeSlides.Length &&
+            displayedChars >= activeSlides[currentLine].Length)
+        {
+            GUI.color = new Color(0.5f, 0.95f, 1f,
                 Mathf.PingPong(Time.unscaledTime * 2f, 1f));
-            GUI.Label(new Rect(x + w - 130, y + h - 20, 120, 16),
-                "[SPACE] Continue", textStyle);
+            GUI.Label(new Rect(x + w - 230f, y + h - 26f, 215f, 22f),
+                "[ESPACIO / Botón A] Continuar", textStyle);
         }
     }
 
     void InitStyles()
     {
-        textStyle = new GUIStyle(GUI.skin.label);
-        textStyle.fontSize = 13;
-        textStyle.wordWrap = true;
+        cachedFontSize = dialogueFontSize;
+
+        textStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = dialogueFontSize,
+            wordWrap = true,
+            clipping = TextClipping.Overflow
+        };
         textStyle.normal.textColor = Color.white;
 
-        nameStyle = new GUIStyle(GUI.skin.label);
-        nameStyle.fontSize = 13;
-        nameStyle.fontStyle = FontStyle.Bold;
+        nameStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = speakerFontSize,
+            fontStyle = FontStyle.Bold,
+            clipping = TextClipping.Overflow
+        };
         nameStyle.normal.textColor = Color.white;
     }
 

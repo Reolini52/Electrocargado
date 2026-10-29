@@ -4,7 +4,8 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Gestiona el recurso de carga de THEIA con modelo matemático de Descarga Exponencial RC:
 /// Q(t) = Q_0 * e^(-t / (R * C))
-/// Totalmente integrado con GameEvents.cs y CargaResidual.cs sin usar GetComponent en Update().
+/// Incluye Feedback Visual Dinámico ("Show, Don't Tell") mediante interpolación suave de color
+/// en el SpriteRenderer del personaje y soporte para Teclado + Gamepad.
 /// </summary>
 public class ChargeResource : MonoBehaviour
 {
@@ -30,7 +31,7 @@ public class ChargeResource : MonoBehaviour
     private float capacitanceC = 1.5f;
 
     [Header("Escudo Dieléctrico (Bubble)")]
-    [Tooltip("Indica si el aislamiento dieléctrico (Shift) está activo.")]
+    [Tooltip("Indica si el aislamiento dieléctrico (Shift / LB en Gamepad) está activo.")]
     public bool bubbleActive = false;
 
     [Tooltip("Costo de carga por segundo al mantener la burbuja activa.")]
@@ -46,13 +47,28 @@ public class ChargeResource : MonoBehaviour
     [Range(0.5f, 10f)]
     public float dischargeDamageInterval = 2f;
 
-    [Header("Feedback Visual de Polaridad")]
-    public Color positiveColor = new Color(0.3f, 0.6f, 1f);
-    public Color negativeColor = new Color(1f, 0.3f, 0.3f);
-    public Color neutralColor = new Color(0.8f, 0.8f, 0.8f);
+    [Header("Feedback Visual de Carga (Show, Don't Tell)")]
+    [Tooltip("Referencia al SpriteRenderer de THEIA. Si se deja vacío se asigna automáticamente en Awake().")]
+    [SerializeField]
+    private SpriteRenderer playerSpriteRenderer;
+
+    [Tooltip("Color objetivo para Carga Positiva (+Q): Tinte Rojo / Cálido.")]
+    [SerializeField]
+    public Color positiveColor = new Color(1f, 0.32f, 0.28f, 1f);
+
+    [Tooltip("Color objetivo para Carga Negativa (-Q): Tinte Azul / Frío.")]
+    [SerializeField]
+    public Color negativeColor = new Color(0.25f, 0.65f, 1f, 1f);
+
+    [Tooltip("Color objetivo para Carga Neutra (0): Color original (Blanco).")]
+    [SerializeField]
+    public Color neutralColor = Color.white;
+
+    [Tooltip("Velocidad de transición suave (Color.Lerp) entre estados de carga.")]
+    [SerializeField, Range(1f, 25f)]
+    private float colorTransitionSpeed = 10f;
 
     // Referencias cacheadas en Awake/Start (Cero GetComponent en Update)
-    private SpriteRenderer sr;
     private PlayerHealth playerHealth;
     private PlayerController playerController;
 
@@ -67,7 +83,13 @@ public class ChargeResource : MonoBehaviour
 
     void Awake()
     {
-        sr = GetComponent<SpriteRenderer>();
+        if (playerSpriteRenderer == null)
+        {
+            playerSpriteRenderer = GetComponent<SpriteRenderer>();
+            if (playerSpriteRenderer == null)
+                playerSpriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        }
+
         playerHealth = GetComponent<PlayerHealth>();
         playerController = GetComponent<PlayerController>();
 
@@ -87,7 +109,7 @@ public class ChargeResource : MonoBehaviour
         graceTimer = graceTime;
         damageTimer = dischargeDamageInterval;
         AnchorExponentialCurve();
-        UpdateVisual();
+        UpdateVisual(instant: true);
         GameEvents.RaiseChargeChanged(charge, 1f);
     }
 
@@ -98,7 +120,7 @@ public class ChargeResource : MonoBehaviour
         HandleBubble();
         DissipateChargeExponentialRC();
         HandleDischargePenalty();
-        UpdateVisual();
+        UpdateVisual(instant: false);
     }
 
     /// <summary>
@@ -156,7 +178,11 @@ public class ChargeResource : MonoBehaviour
 
     void HandleBubble()
     {
-        if (Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame)
+        bool toggleBubblePressed =
+            (Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame) ||
+            (Gamepad.current != null && Gamepad.current.leftShoulder.wasPressedThisFrame);
+
+        if (toggleBubblePressed)
         {
             if (!bubbleActive && Mathf.Abs(charge) > 0.1f)
                 bubbleActive = true;
@@ -207,15 +233,42 @@ public class ChargeResource : MonoBehaviour
         }
     }
 
-    void UpdateVisual()
+    /// <summary>
+    /// Interpola dinámicamente el color del SpriteRenderer de THEIA según su carga:
+    /// +Q -> Rojo/Cálido | -Q -> Azul/Frío | 0 -> Blanco original.
+    /// </summary>
+    void UpdateVisual(bool instant = false)
     {
-        if (sr == null) return;
+        if (playerSpriteRenderer == null) return;
+
+        Color targetColor;
+        float normalizedIntensity = Mathf.Clamp01(Mathf.Abs(charge));
+
         if (IsPositive())
-            sr.color = Color.Lerp(neutralColor, positiveColor, Mathf.Abs(charge));
+        {
+            targetColor = Color.Lerp(neutralColor, positiveColor, normalizedIntensity);
+        }
         else if (IsNegative())
-            sr.color = Color.Lerp(neutralColor, negativeColor, Mathf.Abs(charge));
+        {
+            targetColor = Color.Lerp(neutralColor, negativeColor, normalizedIntensity);
+        }
         else
-            sr.color = neutralColor;
+        {
+            targetColor = neutralColor;
+        }
+
+        if (instant)
+        {
+            playerSpriteRenderer.color = targetColor;
+        }
+        else
+        {
+            playerSpriteRenderer.color = Color.Lerp(
+                playerSpriteRenderer.color,
+                targetColor,
+                colorTransitionSpeed * Time.deltaTime
+            );
+        }
     }
 
     public float GetGraceTimer() => graceTimer;

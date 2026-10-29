@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Sistema de combate cuerpo a cuerpo en combo de 3 golpes de THEIA.
+/// Refactorizado en Fase 1 para soportar Teclado/Ratón + Gamepad (Botón X/Cuadrado o RB/R1 + dirección de Stick).
+/// </summary>
 public class MeleeAttack : MonoBehaviour
 {
     [Header("Combo Settings")]
@@ -23,23 +27,25 @@ public class MeleeAttack : MonoBehaviour
     public Transform hitboxTransform;
     public SpriteRenderer hitboxVisual;
 
+    [Header("Soporte Gamepad y New Input System")]
+    [Tooltip("Opcional: Acción 'Attack' de tu InputActionAsset.")]
+    [SerializeField]
+    private InputActionReference attackActionReference;
+
     // Hitbox sizes per hit
-    // Puño 1: pequeño y adelante
-    // Patada: largo y bajo
-    // Puño 3: grande adelante
-    private Vector2[] hitboxSizes = {
+    private readonly Vector2[] hitboxSizes = {
         new Vector2(0.5f, 0.4f),  // puño 1
         new Vector2(0.8f, 0.3f),  // patada
         new Vector2(0.6f, 0.5f)   // puño final
     };
 
-    private Vector2[] hitboxOffsets = {
+    private readonly Vector2[] hitboxOffsets = {
         new Vector2(0.6f, 0f),    // puño 1 - al frente
         new Vector2(0.7f, -0.2f), // patada - al frente abajo
         new Vector2(0.65f, 0.1f)  // puño final - al frente arriba
     };
 
-    private Color[] hitColors = {
+    private readonly Color[] hitColors = {
         new Color(1f, 0.8f, 0f, 0.6f),   // amarillo puño
         new Color(0f, 0.8f, 1f, 0.6f),   // azul patada
         new Color(1f, 0.3f, 0f, 0.7f)    // naranja puño final
@@ -51,21 +57,41 @@ public class MeleeAttack : MonoBehaviour
     private float cooldownTimer = 0f;
     private bool inputBuffered = false;
     private bool isFacingRight = true;
+    private bool usingGamepadAim = false;
+    private Vector2 lastMouseScreenPos;
+
     private Camera cam;
+    private PlayerController playerController;
+
+    void Awake()
+    {
+        playerController = GetComponent<PlayerController>();
+    }
+
+    void OnEnable()
+    {
+        if (attackActionReference != null && attackActionReference.action != null)
+            attackActionReference.action.Enable();
+    }
 
     void Start()
     {
         cam = Camera.main;
         if (hitbox != null) hitbox.enabled = false;
         if (hitboxVisual != null) hitboxVisual.enabled = false;
+
+        if (Mouse.current != null)
+            lastMouseScreenPos = Mouse.current.position.ReadValue();
     }
 
     void Update()
     {
+        if (GandalfNPC.isGandalfActive) return;
+
         UpdateDirection();
         UpdateHitboxPosition();
 
-        if (Keyboard.current.zKey.wasPressedThisFrame)
+        if (WasAttackPressedThisFrame())
             inputBuffered = true;
 
         if (cooldownTimer > 0f)
@@ -111,20 +137,89 @@ public class MeleeAttack : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Detecta ataque desde InputActionReference, Teclado ([Z]) o Gamepad (Botón X/Cuadrado o RB/R1).
+    /// </summary>
+    private bool WasAttackPressedThisFrame()
+    {
+        if (attackActionReference != null && attackActionReference.action != null &&
+            attackActionReference.action.WasPressedThisFrame())
+        {
+            return true;
+        }
+
+        bool kbAttack = Keyboard.current != null && Keyboard.current.zKey.wasPressedThisFrame;
+        bool gpAttack = Gamepad.current != null &&
+                        (Gamepad.current.buttonWest.wasPressedThisFrame ||
+                         Gamepad.current.rightShoulder.wasPressedThisFrame);
+
+        if (gpAttack)
+            usingGamepadAim = true;
+
+        return kbAttack || gpAttack;
+    }
+
     void UpdateDirection()
     {
-        // Face toward mouse X position
-        Vector2 mouseWorld = cam.ScreenToWorldPoint(
-            Mouse.current.position.ReadValue()
-        );
-        isFacingRight = mouseWorld.x > transform.position.x;
+        // 1. Si se mueve el stick del Gamepad, usar dirección del mando
+        if (Gamepad.current != null)
+        {
+            float rightStickX = Gamepad.current.rightStick.ReadValue().x;
+            float leftStickX = Gamepad.current.leftStick.ReadValue().x;
+            float dpadX = Gamepad.current.dpad.ReadValue().x;
+
+            if (Mathf.Abs(rightStickX) > 0.2f)
+            {
+                usingGamepadAim = true;
+                isFacingRight = rightStickX > 0f;
+                return;
+            }
+            if (Mathf.Abs(leftStickX) > 0.2f || Mathf.Abs(dpadX) > 0.1f)
+            {
+                usingGamepadAim = true;
+                float dirX = Mathf.Abs(leftStickX) > 0.2f ? leftStickX : dpadX;
+                isFacingRight = dirX > 0f;
+                return;
+            }
+        }
+
+        // 2. Si el ratón se movió recientemente, apuntar hacia el cursor
+        if (Mouse.current != null)
+        {
+            Vector2 currentMousePos = Mouse.current.position.ReadValue();
+            if ((currentMousePos - lastMouseScreenPos).sqrMagnitude > 4f)
+            {
+                usingGamepadAim = false;
+                lastMouseScreenPos = currentMousePos;
+            }
+
+            if (!usingGamepadAim)
+            {
+                if (cam == null) cam = Camera.main;
+                if (cam != null)
+                {
+                    Vector2 mouseWorld = cam.ScreenToWorldPoint(currentMousePos);
+                    isFacingRight = mouseWorld.x > transform.position.x;
+                    return;
+                }
+            }
+        }
+
+        // 3. Fallback con Gamepad: orientar según hacia dónde mira THEIA
+        if (playerController != null)
+        {
+            isFacingRight = playerController.GetFacingDirectionSign() >= 0;
+        }
+        else
+        {
+            isFacingRight = transform.localScale.x >= 0f;
+        }
     }
 
     void UpdateHitboxPosition()
     {
         if (hitboxTransform == null) return;
 
-        // Only flip on X axis
         int dir = isFacingRight ? 1 : -1;
         Vector2 currentOffset = hitboxTransform.localPosition;
         hitboxTransform.localPosition = new Vector3(
@@ -160,8 +255,6 @@ public class MeleeAttack : MonoBehaviour
     {
         if (hitbox == null) return;
 
-        // Resize hitbox
-        CircleCollider2D circle = hitbox as CircleCollider2D;
         BoxCollider2D box = hitbox as BoxCollider2D;
 
         if (box != null)
@@ -170,7 +263,6 @@ public class MeleeAttack : MonoBehaviour
             box.offset = Vector2.zero;
         }
 
-        // Reposition
         int dir = isFacingRight ? 1 : -1;
         hitboxTransform.localPosition = new Vector3(
             hitboxOffsets[index].x * dir,
@@ -178,7 +270,6 @@ public class MeleeAttack : MonoBehaviour
             0f
         );
 
-        // Visual
         if (hitboxVisual != null)
         {
             hitboxVisual.enabled = true;

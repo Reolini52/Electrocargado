@@ -2,9 +2,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Controlador de plataformas 2D de THEIA (Refactorizado con arquitectura desacoplada).
-/// Incluye Coyote Time, Jump Buffering, separación estricta Update() (Input/Timers) vs FixedUpdate() (Física),
-/// articulación con el peso/carga RC de THEIA y cero llamadas a GetComponent en Update().
+/// Controlador de plataformas 2D de THEIA (Refactorizado Fase 1: Game Feel + Soporte Nativo Gamepad).
+/// - Compatible simultáneamente con Teclado (WASD/Flechas + Espacio) y Gamepad (Stick Izquierdo/D-Pad + Botón A/Cruz).
+/// - Incluye referencias opcionales a InputActionReference (New Input System) para mapeo por asset.
+/// - Mantiene Coyote Time, Jump Buffering y separación estricta Update() (Input) vs FixedUpdate() (Física).
 /// </summary>
 public class PlayerController : MonoBehaviour
 {
@@ -59,6 +60,23 @@ public class PlayerController : MonoBehaviour
 
     #endregion
 
+    #region Configuración de Gamepad y New Input System
+
+    [Header("Soporte para Controlador (Gamepad Xbox / PlayStation)")]
+    [Tooltip("Zona muerta (Deadzone) del Stick Izquierdo para evitar deriva analógica (drift).")]
+    [SerializeField, Range(0.05f, 0.5f)]
+    private float gamepadStickDeadzone = 0.18f;
+
+    [Tooltip("Opcional: Acción 'Move' de tu InputActionAsset (si se deja vacío usa lectura directa híbrida Teclado + Gamepad).")]
+    [SerializeField]
+    private InputActionReference moveActionReference;
+
+    [Tooltip("Opcional: Acción 'Jump' de tu InputActionAsset (si se deja vacío usa Espacio / Botón A o Cruz).")]
+    [SerializeField]
+    private InputActionReference jumpActionReference;
+
+    #endregion
+
     #region Referencias Cacheadas (Cero GetComponent en Update/FixedUpdate)
 
     private Rigidbody2D rb;
@@ -73,6 +91,7 @@ public class PlayerController : MonoBehaviour
     #region Estado Interno de Input y Timers
 
     private float horizontalInput;
+    private int lastFacingSign = 1;
     private float coyoteTimeCounter;
     private float jumpBufferCounter;
     private bool jumpExecutionRequested;
@@ -92,6 +111,15 @@ public class PlayerController : MonoBehaviour
         cargaResidual = GetComponent<CargaResidual>();
         groundCheck = transform.Find("groundcheker");
         groundLayerMask = ~LayerMask.GetMask("Player");
+    }
+
+    protected virtual void OnEnable()
+    {
+        if (moveActionReference != null && moveActionReference.action != null)
+            moveActionReference.action.Enable();
+
+        if (jumpActionReference != null && jumpActionReference.action != null)
+            jumpActionReference.action.Enable();
     }
 
     protected virtual void Start()
@@ -131,7 +159,7 @@ public class PlayerController : MonoBehaviour
             rb.gravityScale = normalGravity;
         }
 
-        // 1. Lectura de Input y Timers en Update()
+        // 1. Lectura de Input Híbrido (Teclado + Gamepad) y Timers en Update()
         ReadInputAndTimers();
 
         // 2. Evaluación de Coyote Time y Jump Buffering
@@ -161,26 +189,24 @@ public class PlayerController : MonoBehaviour
 
     #endregion
 
-    #region Lógica de Input, Coyote Time y Jump Buffering (Update)
+    #region Lógica de Input Híbrido (Teclado + Gamepad), Coyote Time y Jump Buffering
 
     private void ReadInputAndTimers()
     {
-        horizontalInput = 0f;
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-                horizontalInput = -1f;
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-                horizontalInput = 1f;
+        horizontalInput = ReadHybridHorizontalInput();
 
-            if (Keyboard.current.spaceKey.wasPressedThisFrame)
-            {
-                jumpBufferCounter = jumpBufferDuration;
-            }
-            else
-            {
-                jumpBufferCounter -= Time.deltaTime;
-            }
+        if (Mathf.Abs(horizontalInput) > 0.05f)
+        {
+            lastFacingSign = horizontalInput > 0f ? 1 : -1;
+        }
+
+        if (WasHybridJumpPressedThisFrame())
+        {
+            jumpBufferCounter = jumpBufferDuration;
+        }
+        else
+        {
+            jumpBufferCounter -= Time.deltaTime;
         }
 
         if (isGrounded)
@@ -191,6 +217,70 @@ public class PlayerController : MonoBehaviour
         {
             coyoteTimeCounter -= Time.deltaTime;
         }
+    }
+
+    /// <summary>
+    /// Lee el movimiento horizontal desde InputActionReference (si está asignado), Teclado (A/D, Flechas)
+    /// o Gamepad (Stick Izquierdo con Deadzone y D-Pad).
+    /// </summary>
+    private float ReadHybridHorizontalInput()
+    {
+        // 1. Prioridad a InputActionReference si fue configurado en el Inspector
+        if (moveActionReference != null && moveActionReference.action != null)
+        {
+            Vector2 moveVec = moveActionReference.action.ReadValue<Vector2>();
+            if (Mathf.Abs(moveVec.x) > gamepadStickDeadzone)
+                return Mathf.Clamp(moveVec.x, -1f, 1f);
+        }
+
+        float value = 0f;
+
+        // 2. Lectura de Teclado (New Input System)
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+                value -= 1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+                value += 1f;
+        }
+
+        // 3. Lectura de Gamepad (Stick Izquierdo analógico + D-Pad digital)
+        if (Mathf.Approximately(value, 0f) && Gamepad.current != null)
+        {
+            float stickX = Gamepad.current.leftStick.ReadValue().x;
+            float dpadX = Gamepad.current.dpad.ReadValue().x;
+
+            if (Mathf.Abs(stickX) >= gamepadStickDeadzone)
+            {
+                value = Mathf.Clamp(stickX, -1f, 1f);
+            }
+            else if (Mathf.Abs(dpadX) > 0.1f)
+            {
+                value = Mathf.Sign(dpadX);
+            }
+        }
+
+        return Mathf.Clamp(value, -1f, 1f);
+    }
+
+    /// <summary>
+    /// Detecta salto desde InputActionReference, Teclado (Espacio) o Gamepad (Botón Sur: A en Xbox / Cruz en PlayStation).
+    /// </summary>
+    private bool WasHybridJumpPressedThisFrame()
+    {
+        if (jumpActionReference != null && jumpActionReference.action != null &&
+            jumpActionReference.action.WasPressedThisFrame())
+        {
+            return true;
+        }
+
+        bool keyboardJump = Keyboard.current != null &&
+                            (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.wKey.wasPressedThisFrame);
+
+        bool gamepadJump = Gamepad.current != null &&
+                           Gamepad.current.buttonSouth.wasPressedThisFrame;
+
+        return keyboardJump || gamepadJump;
     }
 
     private void EvaluateJumpTrigger()
@@ -226,6 +316,7 @@ public class PlayerController : MonoBehaviour
 
         if (rb.linearVelocity.x > 0.1f)
         {
+            lastFacingSign = 1;
             transform.localScale = new Vector3(
                 Mathf.Abs(transform.localScale.x),
                 transform.localScale.y,
@@ -233,6 +324,7 @@ public class PlayerController : MonoBehaviour
         }
         else if (rb.linearVelocity.x < -0.1f)
         {
+            lastFacingSign = -1;
             transform.localScale = new Vector3(
                 -Mathf.Abs(transform.localScale.x),
                 transform.localScale.y,
@@ -327,6 +419,7 @@ public class PlayerController : MonoBehaviour
 
     public bool IsGrounded() => isGrounded;
     public Rigidbody2D GetRb() => rb;
+    public int GetFacingDirectionSign() => lastFacingSign;
 
     #endregion
 }
