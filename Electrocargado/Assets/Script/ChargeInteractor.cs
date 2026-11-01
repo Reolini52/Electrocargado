@@ -164,7 +164,14 @@ public class ChargeInteractor : MonoBehaviour
 
             grapplePoint = bestHit.transform.position;
             grappleTarget = bestHit.gameObject;
-            grappleTargetDynamicRb = bestDynamic != null ? bestDynamic.GetComponent<Rigidbody2D>() : null;
+            EnemyCorruptor hitCorruptor = bestHit.GetComponent<EnemyCorruptor>();
+            if (hitCorruptor != null && !attracting)
+            {
+                hitCorruptor.ActivateEdgeIgnoreWindow(1.1f);
+            }
+            grappleTargetDynamicRb = bestDynamic != null
+                ? bestDynamic.GetComponent<Rigidbody2D>()
+                : (hitCorruptor != null ? hitCorruptor.GetComponent<Rigidbody2D>() : null);
 
             if (!isGrappling)
             {

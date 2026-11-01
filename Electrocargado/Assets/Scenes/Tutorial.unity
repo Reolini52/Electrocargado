@@ -233,6 +233,37 @@ MonoBehaviour:
   maxSparkEmissionRate: 22
   auraRadius: 0.48
   additionalRenderers: []
+--- !u!1 &399049970
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 399049971}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &399049971
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 399049970}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 360.2, y: 154.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &460192950
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -72570,11 +72601,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 310
+      value: 310.4
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 154.9
+      value: 155.3
       objectReference: {fileID: 0}
     - target: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
       propertyPath: m_LocalPosition.z
@@ -72929,16 +72960,34 @@ PrefabInstance:
       value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: spawnPoints.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: enemyPrefabs.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'spawnPoints.Array.data[0]'
+      value: 
+      objectReference: {fileID: 399049971}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
+      propertyPath: 'enemyPrefabs.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1903357114}
+    - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[0].question
-      value: How do you restore leaking charge before running out?
+      value: "\xBFC\xF3mo recuperas la carga que se est\xE1 perdiendo antes de que
+        se agote por completo?"
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[1].question
-      value: How can you instantly tell THEIA has enough energy to double jump?
+      value: "\xBFC\xF3mo puedes saber al instante si THEIA tiene suficiente energ\xEDa
+        para realizar un doble salto?"
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[2].question
-      value: What opens the sector gate at the end of this circuit?
+      value: "\xBFQu\xE9 abre la puerta del sector al final de este circuito?"
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[0].correctAnswer
@@ -72954,17 +73003,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[0].pedagogicalHint
-      value: 'CHARGE DEPLETION: Charge leaks over time. Hold [Q] + Click a power
-        node to absorb.'
+      value: "AGOTAMIENTO DE CARGA: La carga se pierde con el tiempo. Mant\xE9n pulsado
+        [Q] y haz clic en un nodo de energ\xEDa para absorberla."
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[1].pedagogicalHint
-      value: 'CAPACITOR BOOST: Double jump requires charge. Watch your hair tint
-        & bar.'
+      value: "IMPULSO DE CAPACITOR: El doble salto requiere carga. Presta atenci\xF3n
+        al tono de tu cabello y a la barra."
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[2].pedagogicalHint
-      value: 'CIRCUIT OVERRIDE: Transfer your charge into the gate console to unseal.'
+      value: "ANULACI\xD3N DE CIRCUITO: Transfiere tu carga a la consola de la compuerta
+        para desbloquearla."
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: questions.Array.data[0].options.Array.size
@@ -72980,39 +73030,39 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[0].options.Array.data[0]'
-      value: A) Stand still
+      value: A)Quedarse quiet@
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[0].options.Array.data[1]'
-      value: B) Hold [Q], aim, and click a power node
+      value: B)Presionar [Q], apuntar, y mantener click en el nodo de carga
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[0].options.Array.data[2]'
-      value: C) Take damage from spikes
+      value: C) Tomar dano por las puas
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[1].options.Array.data[0]'
-      value: A) She stops moving
+      value: A)Deja de moverse
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[1].options.Array.data[1]'
-      value: B) Character tint/hair glow and charge bar
+      value: B)Tinte del personaje/brillo del cabello y barra de carga
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[1].options.Array.data[2]'
-      value: C) Game sound turns off
+      value: C)El sonido del juego se desactiva
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[2].options.Array.data[0]'
-      value: A) Waiting for the timer
+      value: A) Esperando al temporizador
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[2].options.Array.data[1]'
-      value: B) Transferring charge to the terminal
+      value: B) Transferencia de carga a la terminal
       objectReference: {fileID: 0}
     - target: {fileID: 7701638664437086214, guid: 59d2fda884d02094cb77789fc6c2b56b, type: 3}
       propertyPath: 'questions.Array.data[2].options.Array.data[2]'
-      value: C) Defeating Gandalf
+      value: C) Derrotar a Gandalf
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -73212,6 +73262,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 45fd7a38b1da4e84e9335a000d09f702, type: 3}
+--- !u!1 &1903357114 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7141277820766483073, guid: 75b218eddcd74d84b967fc1cca6672b8, type: 3}
+  m_PrefabInstance: {fileID: 2065772921}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2061953143
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -73791,6 +73846,7 @@ SceneRoots:
   - {fileID: 628865349}
   - {fileID: 1532721975}
   - {fileID: 534985834}
+  - {fileID: 399049971}
   - {fileID: 460192950}
   - {fileID: 1468224564}
   - {fileID: 744702791}

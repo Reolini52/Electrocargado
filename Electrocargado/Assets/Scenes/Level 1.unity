@@ -328,8 +328,16 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5597205085163558520, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1440339685}
   m_SourcePrefab: {fileID: 100100000, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+--- !u!1 &331936189 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5597205085163558520, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+  m_PrefabInstance: {fileID: 331936188}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &366643151
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -28136,6 +28144,32 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5574505356738672641, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
   m_PrefabInstance: {fileID: 331936188}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1440339685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 331936189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b2102b7cdf7df14296a077e6262ee52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerChargeVisuals
+  targetRenderer: {fileID: 0}
+  chargeResource: {fileID: 0}
+  positiveColor: {r: 0.25098038, g: 0.96331733, b: 1, a: 1}
+  neutralColor: {r: 1, g: 1, b: 1, a: 1}
+  negativeColor: {r: 1, g: 0.19999999, b: 0.20438994, a: 1}
+  colorTransitionSpeed: 8
+  neutralDeadzone: 0.05
+  chargeSparksParticles: {fileID: 0}
+  autoCreateParticlesIfMissing: 1
+  emitSubtleIdleParticlesWhenNeutral: 1
+  sparkChargeThreshold: 0.1
+  maxSparkEmissionRate: 38
+  auraRadius: 0.48
+  additionalRenderers: []
 --- !u!1 &1447341422
 GameObject:
   m_ObjectHideFlags: 0

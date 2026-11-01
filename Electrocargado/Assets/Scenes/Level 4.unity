@@ -723,8 +723,58 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5597205085163558520, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4802358842069993004}
   m_SourcePrefab: {fileID: 100100000, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+--- !u!1 &4802358842069993003 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5597205085163558520, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+  m_PrefabInstance: {fileID: 4802358842069993002}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4802358842069993004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4802358842069993003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b2102b7cdf7df14296a077e6262ee52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerChargeVisuals
+  targetRenderer: {fileID: 4802358842069993018}
+  chargeResource: {fileID: 4802358842069993015}
+  positiveColor: {r: 0.25098038, g: 0.9962142, b: 1, a: 1}
+  neutralColor: {r: 1, g: 1, b: 1, a: 1}
+  negativeColor: {r: 1, g: 0.19999999, b: 0.20460652, a: 1}
+  colorTransitionSpeed: 8
+  neutralDeadzone: 0.05
+  chargeSparksParticles: {fileID: 0}
+  autoCreateParticlesIfMissing: 1
+  emitSubtleIdleParticlesWhenNeutral: 1
+  sparkChargeThreshold: 0.1
+  maxSparkEmissionRate: 38
+  auraRadius: 0.48
+  additionalRenderers: []
+--- !u!114 &4802358842069993015 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3707942192956190128, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+  m_PrefabInstance: {fileID: 4802358842069993002}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4802358842069993003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 196441aa4733d92498c4aa9d0e7db27d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChargeResource
+--- !u!212 &4802358842069993018 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 7296829438174678448, guid: 3ee320d5681294c4eb0a42ea00983765, type: 3}
+  m_PrefabInstance: {fileID: 4802358842069993002}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &4947124079721129374
 PrefabInstance:
   m_ObjectHideFlags: 0
