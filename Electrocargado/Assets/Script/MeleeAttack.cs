@@ -196,9 +196,8 @@ public class MeleeAttack : MonoBehaviour
             if (!usingGamepadAim)
             {
                 if (cam == null) cam = Camera.main;
-                if (cam != null)
+                if (ElectroPhysicsUtility.TryScreenToWorldPoint2D(cam, currentMousePos, out Vector2 mouseWorld))
                 {
-                    Vector2 mouseWorld = cam.ScreenToWorldPoint(currentMousePos);
                     isFacingRight = mouseWorld.x > transform.position.x;
                     return;
                 }

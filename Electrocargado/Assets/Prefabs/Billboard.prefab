@@ -45,5 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Billboard
   fullImage: {fileID: -6614878741834766023, guid: 76d2a86c0ee82194eb49390dc4ff8a2a, type: 3}
-  caption: 
+  topicTitle: CONSERVATION OF CHARGE (Charging by Conduction)
+  formulaText: Q_total = constant
+  caption: Charge cannot be created or destroyed, only transferred. Keep THEIA energized.
   interactRadius: 3

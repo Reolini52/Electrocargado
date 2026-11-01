@@ -35,6 +35,18 @@ public class DynamicChargedObject : MonoBehaviour
     [SerializeField, Range(5f, 100f)]
     private float maxForceClamp = 25f;
 
+    [Tooltip("[Fase 3] Magnitud máxima de la componente magnética (Lorentz) inducida por el movimiento de THEIA.")]
+    [SerializeField, Range(1f, 60f)]
+    private float maxLorentzForceClamp = 15f;
+
+    [Tooltip("[Fase 3] Magnitud máxima de la fuerza TOTAL (Coulomb + Lorentz) aplicada en un paso físico.")]
+    [SerializeField, Range(5f, 120f)]
+    private float maxTotalForceClamp = 30f;
+
+    [Tooltip("[Fase 3] Velocidad de THEIA máxima considerada en el cálculo de Lorentz (evita picos por dashes / knockbacks).")]
+    [SerializeField, Range(1f, 40f)]
+    private float maxPlayerSpeedForLorentz = 12f;
+
     [Header("Propiedades del Material")]
     public bool isConductor = true;
 
@@ -54,6 +66,9 @@ public class DynamicChargedObject : MonoBehaviour
     private ChargeResource player;
     private Rigidbody2D playerRb;
     private readonly List<LineRenderer> fieldRings = new List<LineRenderer>();
+
+    /// <summary>[Fase 3] Rigidbody2D cacheado, expuesto para que otros sistemas (MagneticForce) no usen GetComponent en FixedUpdate.</summary>
+    public Rigidbody2D Body => rb;
 
     void Awake()
     {
@@ -175,8 +190,9 @@ public class DynamicChargedObject : MonoBehaviour
 
         if (rawDist > effectRadius || rawDist < 0.05f) return;
 
-        // Clamping de seguridad en distancia mínima r_min
-        float clampedR = Mathf.Max(rawDist, minSafeDistance);
+        // [Fase 3] Clamping del divisor r^2 con Mathf.Clamp (r ∈ [r_min, effectRadius])
+        float sqrClampedR = ElectroPhysicsUtility.SafeSqrDistance(rawDist, minSafeDistance, effectRadius);
+        float clampedR = Mathf.Sqrt(sqrClampedR);
         Vector2 dirToPlayer = displacementToPlayer / rawDist;
 
         float q1 = charge;
@@ -184,26 +200,28 @@ public class DynamicChargedObject : MonoBehaviour
         float chargeProduct = q1 * q2;
 
         // Ley de Coulomb: F = k_e * |q1 * q2| / r^2
-        float rawCoulombMag = forceStrength * Mathf.Abs(chargeProduct) / (clampedR * clampedR);
+        float rawCoulombMag = forceStrength * Mathf.Abs(chargeProduct) / sqrClampedR;
         float forceMag = Mathf.Clamp(rawCoulombMag, 0.5f, maxForceClamp);
 
         bool isAttractive = chargeProduct < 0f;
         Vector2 forceOnDynamicObj = isAttractive ? (dirToPlayer * forceMag) : (-dirToPlayer * forceMag);
 
-        rb.AddForce(forceOnDynamicObj, ForceMode2D.Force);
-
         // Componente Magnética (Lorentz inducida por movimiento relativo de carga)
+        // [Fase 3] Antes no tenía límite: con q=5 y THEIA en dash la fuerza crecía sin techo.
+        Vector2 lorentzForce = Vector2.zero;
         if (playerRb != null && playerRb.linearVelocity.sqrMagnitude > 0.25f)
         {
-            Vector2 playerVel = playerRb.linearVelocity;
-            Vector2 perp = new Vector2(-playerVel.normalized.y, playerVel.normalized.x);
-            float magForce = q2 * q1 * playerVel.magnitude * 1.5f;
-            rb.AddForce(perp * magForce, ForceMode2D.Force);
+            lorentzForce = ElectroPhysicsUtility.LorentzForce(
+                playerRb.linearVelocity, q2 * q1, 1.5f,
+                maxPlayerSpeedForLorentz, maxLorentzForceClamp);
         }
 
+        // [Fase 3] Una única llamada con la resultante total limitada (Vector2.ClampMagnitude)
+        Vector2 totalForce = Vector2.ClampMagnitude(forceOnDynamicObj + lorentzForce, maxTotalForceClamp);
+        EMForceAccumulator2D.ApplyForce(rb, totalForce);
+
         // Clamping de velocidad máxima en Rigidbody2D
-        if (rb.linearVelocity.sqrMagnitude > maxSpeed * maxSpeed)
-            rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+        ElectroPhysicsUtility.ClampLinearVelocity(rb, maxSpeed);
 
         // Emitir telemetría en vivo a la Capa 2 (DebugOverlayUI)
         GameEvents.RaiseForceApplied(new CoulombForceData(

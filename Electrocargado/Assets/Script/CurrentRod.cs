@@ -187,8 +187,8 @@ public class CurrentRod : MonoBehaviour
         if (player.GetCharge() < 0) perpendicular *= -1;
         if (electronSpeed < 0) perpendicular *= -1;
 
-        Vector2 magForceVec = perpendicular * forceMag;
-        playerRb.AddForce(magForceVec, ForceMode2D.Force);
+        Vector2 magForceVec = Vector2.ClampMagnitude(perpendicular * forceMag, magneticStrength * 1.5f);
+        EMForceAccumulator2D.ApplyForce(playerRb, magForceVec);
 
         GameEvents.RaiseMagneticForceApplied(new CurrentMagneticData(
             rodPos,

@@ -15,7 +15,13 @@ public class Billboard : MonoBehaviour
     [Header("Contenido del Cartel")]
     public Sprite fullImage;
 
-    [Tooltip("Texto explicativo principal (si es largo, se divide automáticamente en fragmentos/viñetas).")]
+    [Tooltip("Título/Tema principal del cartel (ej. CONSERVATION OF CHARGE (Charging by Conduction)).")]
+    public string topicTitle = "CONSERVATION OF CHARGE (Charging by Conduction)";
+
+    [Tooltip("Fórmula destacada a mostrar en el cartel (ej. Q_total = constant).")]
+    public string formulaText = "Q_total = constant";
+
+    [Tooltip("Texto explicativo principal / Key Takeaway (si es largo, se divide automáticamente en fragmentos/viñetas).")]
     [TextArea(2, 5)]
     public string caption = "";
 
@@ -290,21 +296,52 @@ public class Billboard : MonoBehaviour
                 "[F / Y] Inspeccionar", hintStyle);
         }
 
-        if (!isViewing || displayTexture == null) return;
+        if (!isViewing) return;
 
         // Fondo oscuro de alto contraste para accesibilidad
         GUI.color = new Color(0f, 0f, 0f, 0.92f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
 
-        // Imagen centrada dejando espacio generoso en la parte inferior para la fuente grande
         bool hasText = preparedPages != null && preparedPages.Length > 0;
         float imgW = Screen.width * 0.68f;
-        float imgH = Screen.height * (hasText ? 0.58f : 0.72f);
+        float imgH = Screen.height * (hasText ? 0.52f : 0.68f);
         float imgX = Screen.width / 2f - imgW / 2f;
         float imgY = Screen.height * 0.06f;
 
-        GUI.color = Color.white;
-        GUI.DrawTexture(new Rect(imgX, imgY, imgW, imgH), displayTexture, ScaleMode.ScaleToFit);
+        if (displayTexture != null)
+        {
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(imgX, imgY, imgW, imgH), displayTexture, ScaleMode.ScaleToFit);
+        }
+        else
+        {
+            // Póster procedural arcade/sci-fi cuando no hay imagen o para destacar Topic + Formula
+            GUI.color = new Color(0.04f, 0.07f, 0.18f, 0.96f);
+            GUI.DrawTexture(new Rect(imgX, imgY, imgW, imgH), Texture2D.whiteTexture);
+            GUI.color = new Color(0.3f, 0.85f, 1f, 0.9f);
+            GUI.DrawTexture(new Rect(imgX, imgY, imgW, 3f), Texture2D.whiteTexture);
+        }
+
+        // Mostrar Topic y Formula en el encabezado del póster si están configurados
+        if (!string.IsNullOrWhiteSpace(topicTitle) || !string.IsNullOrWhiteSpace(formulaText))
+        {
+            float headerH = 66f;
+            GUI.color = new Color(0.03f, 0.05f, 0.14f, 0.92f);
+            GUI.DrawTexture(new Rect(imgX, imgY, imgW, headerH), Texture2D.whiteTexture);
+            GUI.color = new Color(0.3f, 0.85f, 1f, 0.95f);
+            GUI.DrawTexture(new Rect(imgX, imgY, imgW, 3f), Texture2D.whiteTexture);
+
+            if (!string.IsNullOrWhiteSpace(topicTitle))
+            {
+                GUI.color = new Color(0.35f, 0.9f, 1f, 1f);
+                GUI.Label(new Rect(imgX + 18f, imgY + 8f, imgW - 36f, 26f), $"⚡ {topicTitle}", hintStyle);
+            }
+            if (!string.IsNullOrWhiteSpace(formulaText))
+            {
+                GUI.color = new Color(1f, 0.92f, 0.35f, 1f);
+                GUI.Label(new Rect(imgX + 18f, imgY + 34f, imgW - 36f, 26f), $"[ FORMULA:  {formulaText} ]", hintStyle);
+            }
+        }
 
         // Caja de texto accesible con fuente grande
         if (hasText)

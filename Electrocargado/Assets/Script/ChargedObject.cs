@@ -188,8 +188,9 @@ public class ChargedObject : MonoBehaviour
 
         if (rawDist > effectRadius || rawDist < 0.05f) return;
 
-        // Clamping de seguridad en distancia mínima r_min para evitar singularidad 1/r^2
-        float clampedR = Mathf.Max(rawDist, minSafeDistance);
+        // [Fase 3] Clamping del divisor r^2 con Mathf.Clamp (r ∈ [r_min, effectRadius]) para evitar singularidad 1/r^2
+        float sqrClampedR = ElectroPhysicsUtility.SafeSqrDistance(rawDist, minSafeDistance, effectRadius);
+        float clampedR = Mathf.Sqrt(sqrClampedR);
         Vector2 rHat = displacement / rawDist;
 
         float q1 = charge;
@@ -197,14 +198,16 @@ public class ChargedObject : MonoBehaviour
         float chargeProduct = q1 * q2;
 
         // Modelo Matemático Oficial: Ley de Coulomb F_e = k_e * |q1 * q2| / r^2
-        float rawCoulombMag = forceStrength * Mathf.Abs(chargeProduct) / (clampedR * clampedR);
+        float rawCoulombMag = forceStrength * Mathf.Abs(chargeProduct) / sqrClampedR;
         float forceMag = Mathf.Clamp(rawCoulombMag, 0.5f, maxForceClamp);
 
         // Si q1 * q2 > 0 -> Repulsión (+rHat saliente); si q1 * q2 < 0 -> Atracción (-rHat entrante)
         bool isAttractive = chargeProduct < 0f;
         Vector2 forceVector = isAttractive ? (-rHat * forceMag) : (rHat * forceMag);
 
-        playerRb.AddForce(forceVector, ForceMode2D.Force);
+        // [Fase 3] Red de seguridad vectorial + enrutado por el acumulador EM de THEIA (si existe)
+        forceVector = Vector2.ClampMagnitude(forceVector, maxForceClamp);
+        EMForceAccumulator2D.ApplyForce(playerRb, forceVector);
 
         // Emitir telemetría en tiempo real al Bus de Eventos para el Debug Overlay (Tecla V)
         GameEvents.RaiseForceApplied(new CoulombForceData(

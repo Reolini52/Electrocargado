@@ -72,6 +72,13 @@ public class ChargeResource : MonoBehaviour
     private PlayerHealth playerHealth;
     private PlayerController playerController;
 
+    /// <summary>
+    /// [Fase 3] Permite que un componente visual modular (PlayerChargeVisuals) tome control exclusivo
+    /// del SpriteRenderer de THEIA sin que ChargeResource.UpdateVisual lo sobrescriba.
+    /// </summary>
+    [HideInInspector]
+    public bool overrideBuiltInVisuals = false;
+
     // Estado interno del modelo exponencial Q(t) = Q_0 * e^(-t / RC)
     private float initialChargeQ0;
     private float elapsedTimeInRegime;
@@ -101,6 +108,17 @@ public class ChargeResource : MonoBehaviour
         if (GetComponent<CoulombForce2D>() == null)
         {
             gameObject.AddComponent<CoulombForce2D>();
+        }
+        // [Fase 3] Garantiza el acumulador de presupuesto de fuerza EM en THEIA para que la suma
+        // de múltiples fuentes simultáneas nunca supere el límite de Game Feel.
+        if (GetComponent<EMForceAccumulator2D>() == null)
+        {
+            gameObject.AddComponent<EMForceAccumulator2D>();
+        }
+        // [Fase 3] Garantiza que PlayerChargeVisuals esté activo y genere las partículas alrededor de THEIA.
+        if (GetComponent<PlayerChargeVisuals>() == null)
+        {
+            gameObject.AddComponent<PlayerChargeVisuals>();
         }
     }
 
@@ -239,7 +257,7 @@ public class ChargeResource : MonoBehaviour
     /// </summary>
     void UpdateVisual(bool instant = false)
     {
-        if (playerSpriteRenderer == null) return;
+        if (overrideBuiltInVisuals || playerSpriteRenderer == null) return;
 
         Color targetColor;
         float normalizedIntensity = Mathf.Clamp01(Mathf.Abs(charge));

@@ -45,6 +45,16 @@ public class PolarousBossController : MonoBehaviour
     public CurrentRod centralCurrentRod;
     public FieldZone arenaElectricField;
 
+    [Header("Clamping de Fuerza de Coulomb sobre THEIA (Fase 3)")]
+    [Tooltip("Constante k_e del núcleo de POLAROUS.")]
+    [SerializeField, Range(5f, 150f)] private float coreCoulombKe = 50f;
+    [Tooltip("Distancia mínima r_min del divisor r² (evita fuerzas infinitas al tocar el núcleo).")]
+    [SerializeField, Range(0.3f, 3f)] private float coreMinSafeDistance = 1.1f;
+    [Tooltip("Radio máximo de influencia del núcleo.")]
+    [SerializeField, Range(4f, 30f)] private float coreInteractionRadius = 14f;
+    [Tooltip("Magnitud máxima de la fuerza que el núcleo ejerce sobre THEIA.")]
+    [SerializeField, Range(5f, 80f)] private float coreMaxForce = 22f;
+
     // Estado de sobrecarga / aturdimiento tras descarga RC
     private float overloadStunTimer = 0f;
     private float meleeHitCooldown = 0f;
@@ -247,19 +257,23 @@ public class PolarousBossController : MonoBehaviour
         Vector2 disp = playerPos - bossPos;
         float dist = disp.magnitude;
 
-        if (dist > 14f || dist < 0.2f) return;
+        if (dist > coreInteractionRadius || dist < 0.2f) return;
 
-        float clampedR = Mathf.Max(dist, 1.1f);
+        // [Fase 3] Divisor r^2 acotado con Mathf.Clamp (r ∈ [r_min, r_max])
+        float sqrClampedR = ElectroPhysicsUtility.SafeSqrDistance(dist, coreMinSafeDistance, coreInteractionRadius);
+        float clampedR = Mathf.Sqrt(sqrClampedR);
         Vector2 rHat = disp / dist;
         float q1 = bossCharge * 1.4f;
         float q2 = playerCharge.GetCharge();
-        float ke = 50f;
+        float ke = coreCoulombKe;
 
-        float forceMag = Mathf.Clamp(ke * Mathf.Abs(q1 * q2) / (clampedR * clampedR), 0.5f, 22f);
+        float forceMag = Mathf.Clamp(ke * Mathf.Abs(q1 * q2) / sqrClampedR, 0.5f, coreMaxForce);
         bool isAttractive = (q1 * q2) < 0f;
         Vector2 forceVec = isAttractive ? (-rHat * forceMag) : (rHat * forceMag);
 
-        playerRb.AddForce(forceVec, ForceMode2D.Force);
+        // [Fase 3] ClampMagnitude + acumulador EM (la suma con otras fuentes también queda limitada)
+        forceVec = Vector2.ClampMagnitude(forceVec, coreMaxForce);
+        EMForceAccumulator2D.ApplyForce(playerRb, forceVec);
 
         GameEvents.RaiseForceApplied(new CoulombForceData(
             bossPos, playerPos, q1, q2, clampedR, ke, forceVec, isAttractive

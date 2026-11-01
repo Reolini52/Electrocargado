@@ -177,10 +177,14 @@ PrefabInstance:
       objectReference: {fileID: 8300000, guid: ea2b84ef4fbefda4fbb374d15613377a, type: 3}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: autoAdvance
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: triggerOnce
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
+      propertyPath: floatingWorldBubble
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
@@ -487,11 +491,19 @@ PrefabInstance:
       objectReference: {fileID: 8300000, guid: ea2b84ef4fbefda4fbb374d15613377a, type: 3}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: typeSpeed
-      value: 0.04
+      value: 0.025
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: autoAdvance
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
+      propertyPath: triggerOnce
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
+      propertyPath: floatingWorldBubble
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: 'lines.Array.data[0]'
@@ -29088,11 +29100,19 @@ PrefabInstance:
       objectReference: {fileID: 8300000, guid: ea2b84ef4fbefda4fbb374d15613377a, type: 3}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: typeSpeed
-      value: 0.04
+      value: 0.025
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: autoAdvance
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
+      propertyPath: triggerOnce
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
+      propertyPath: floatingWorldBubble
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6194941682834158540, guid: 711021f9e19605842ad1b6deb6a73cf9, type: 3}
       propertyPath: 'lines.Array.data[0]'

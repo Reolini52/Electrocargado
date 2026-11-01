@@ -290,6 +290,8 @@ public class CargaResidual : MonoBehaviour
     private void UpdateVisualFeedback()
     {
         if (cachedSpriteRenderer == null) return;
+        // [Fase 3] Si PlayerChargeVisuals está activo en THEIA, delegar el coloreado del SpriteRenderer y las partículas
+        if (legacyChargeResource != null && legacyChargeResource.overrideBuiltInVisuals) return;
 
         float normalizedMagnitude = Mathf.Clamp01(Mathf.Abs(currentCharge) / maxChargeCapacity);
 

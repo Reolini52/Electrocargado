@@ -27,11 +27,12 @@ public class AimIndicator : MonoBehaviour
 
     void Update()
     {
-        if (cam == null) return;
+        if (cam == null) cam = Camera.main;
+        if (cam == null || Mouse.current == null) return;
 
-        Vector2 mouseWorld = cam.ScreenToWorldPoint(
-            Mouse.current.position.ReadValue()
-        );
+        if (!ElectroPhysicsUtility.TryScreenToWorldPoint2D(cam, Mouse.current.position.ReadValue(), out Vector2 mouseWorld))
+            return;
+
         transform.position = mouseWorld;
         transform.localScale = Vector3.one * dotSize;
 

@@ -12,14 +12,21 @@ public class DialogueSystem : MonoBehaviour
     [Header("Dialogue")]
     [TextArea(3, 6)]
     public string[] lines;
-    public float triggerRadius = 3f;
-    public bool triggerOnce = true;
-    public bool autoAdvance = false;
-    public float autoAdvanceTime = 3.5f;
+    public float triggerRadius = 3.5f;
+    public bool triggerOnce = false;
+    public bool autoAdvance = true;
+    public float autoAdvanceTime = 4.5f;
+
+    [Header("Floating Bubble Mode (Level 0 Tutorial / Arcade Style)")]
+    [Tooltip("Si está activo, muestra una burbuja flotante en el espacio sobre el nodo sin frenar el juego (Time.timeScale = 1).")]
+    public bool floatingWorldBubble = true;
+
+    [Tooltip("Desplazamiento vertical de la burbuja flotante sobre la posición del GameObject.")]
+    public Vector2 bubbleWorldOffset = new Vector2(0f, 1.35f);
 
     [Header("Speaker")]
-    public string speakerName = "SYSTEM";
-    public Color speakerColor = new Color(0.3f, 0.8f, 1f);
+    public string speakerName = "SISTEMA";
+    public Color speakerColor = new Color(0.3f, 0.85f, 1f);
 
     [Header("Accesibilidad y Tipografía (Inspector)")]
     [Tooltip("Tamaño de fuente del texto de diálogo.")]
@@ -39,7 +46,7 @@ public class DialogueSystem : MonoBehaviour
     private TMP_Text tmpDialogueText;
 
     [Header("Typewriter")]
-    public float typeSpeed = 0.03f;
+    public float typeSpeed = 0.025f;
     public AudioClip typeSound;
 
     private string[] activeSlides;
@@ -110,7 +117,14 @@ public class DialogueSystem : MonoBehaviour
         if (dist < triggerRadius && !hasTriggered)
         {
             StartDialogue();
-            if (triggerOnce) hasTriggered = true;
+            hasTriggered = true;
+        }
+        else if (floatingWorldBubble && dist > triggerRadius * 1.35f)
+        {
+            // En modo burbuja flotante, se oculta al alejarse y permite volver a activarse al acercarse de nuevo
+            isShowing = false;
+            hasTriggered = false;
+            return;
         }
 
         if (!isShowing) return;
@@ -120,12 +134,24 @@ public class DialogueSystem : MonoBehaviour
         if (autoAdvance)
         {
             autoTimer -= Time.unscaledDeltaTime;
-            if (autoTimer <= 0f) AdvanceLine();
+            if (autoTimer <= 0f)
+            {
+                // Si es burbuja flotante de 1 sola línea y el jugador sigue cerca, mantenerla visible mientras esté en el radio
+                if (floatingWorldBubble && activeSlides != null && currentLine >= activeSlides.Length - 1 && dist <= triggerRadius * 1.15f)
+                {
+                    autoTimer = 1.0f;
+                }
+                else
+                {
+                    AdvanceLine();
+                }
+            }
         }
 
         bool advancePressed =
-            (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+            !floatingWorldBubble &&
+            ((Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+             (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame));
 
         if (advancePressed)
             AdvanceLine();
@@ -170,7 +196,9 @@ public class DialogueSystem : MonoBehaviour
         displayedText = "";
         displayedChars = 0;
         typeTimer = typeSpeed;
-        Time.timeScale = 0.3f;
+        autoTimer = autoAdvanceTime;
+        if (!floatingWorldBubble)
+            Time.timeScale = 0.3f;
     }
 
     void AdvanceLine()
@@ -202,7 +230,37 @@ public class DialogueSystem : MonoBehaviour
     void OnGUI()
     {
         if (!isShowing || activeSlides == null || activeSlides.Length == 0) return;
+        if (GandalfNPC.isGandalfActive || GameEvents.IsCleanHudHidden) return;
         if (textStyle == null || cachedFontSize != dialogueFontSize) InitStyles();
+
+        if (floatingWorldBubble && Camera.main != null)
+        {
+            Vector3 worldTarget = transform.position + new Vector3(bubbleWorldOffset.x, bubbleWorldOffset.y, 0f);
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(worldTarget);
+            if (screenPos.z > 0f)
+            {
+                float bw = 410f;
+                string fullCurrentSlide = (currentLine < activeSlides.Length) ? activeSlides[currentLine] : displayedText;
+                float textHeight = textStyle.CalcHeight(new GUIContent(fullCurrentSlide), bw - 24f);
+                float bh = Mathf.Max(78f, textHeight + 38f);
+                float bx = Mathf.Clamp(screenPos.x - bw * 0.5f, 12f, Screen.width - bw - 12f);
+                float by = Mathf.Clamp((Screen.height - screenPos.y) - bh * 0.5f, 12f, Screen.height - bh - 12f);
+
+                GUI.color = new Color(0.03f, 0.05f, 0.15f, 0.94f);
+                GUI.DrawTexture(new Rect(bx, by, bw, bh), Texture2D.whiteTexture);
+
+                GUI.color = speakerColor;
+                GUI.DrawTexture(new Rect(bx, by, bw, 3f), Texture2D.whiteTexture);
+                GUI.Label(new Rect(bx + 12f, by + 5f, bw - 24f, 20f), $"⚡ {speakerName}", nameStyle);
+
+                GUI.color = Color.white;
+                if (currentLine < activeSlides.Length)
+                {
+                    GUI.Label(new Rect(bx + 12f, by + 26f, bw - 24f, bh - 30f), displayedText, textStyle);
+                }
+                return;
+            }
+        }
 
         float w = Mathf.Min(Screen.width * 0.68f, 760f);
         float h = 110f;

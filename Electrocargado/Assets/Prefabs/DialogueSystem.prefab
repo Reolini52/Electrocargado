@@ -45,12 +45,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DialogueSystem
   lines:
-  - Welcome, THEIA. This sector has been corrupted by POLAROUS.
-  triggerRadius: 3
-  triggerOnce: 1
-  autoAdvance: 0
-  autoAdvanceTime: 3
-  speakerName: SYSTEM
-  speakerColor: {r: 0.3, g: 0.8, b: 1, a: 1}
-  typeSpeed: 0.04
+  - 'INICIO DE SISTEMA: Usa [WASD] para Moverte. [Espacio] para Saltar.'
+  triggerRadius: 3.5
+  triggerOnce: 0
+  autoAdvance: 1
+  autoAdvanceTime: 4.5
+  floatingWorldBubble: 1
+  bubbleWorldOffset: {x: 0, y: 1.35}
+  speakerName: INICIO DE SISTEMA
+  speakerColor: {r: 0.3, g: 0.85, b: 1, a: 1}
+  typeSpeed: 0.025
   typeSound: {fileID: 8300000, guid: ea2b84ef4fbefda4fbb374d15613377a, type: 3}

@@ -25,6 +25,7 @@ public class EnemyEmisor : MonoBehaviour
     private Transform player;
     private PlayerHealth playerHealth;
     private ChargeResource playerCharge;
+    private EnemyHealth enemyHealth;
     private Rigidbody2D rb;
     private SpriteRenderer sr;
     private Rigidbody2D playerRb;
@@ -32,11 +33,21 @@ public class EnemyEmisor : MonoBehaviour
     private float shootTimer = 0f;
     private bool isAttracted = false;
 
-    void Start()
+    void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
+        enemyHealth = GetComponent<EnemyHealth>();
+        if (enemyHealth == null)
+        {
+            enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.maxHealth = 3;
+            enemyHealth.currentHealth = 3;
+        }
+    }
 
+    void Start()
+    {
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj != null)
         {
@@ -46,8 +57,25 @@ public class EnemyEmisor : MonoBehaviour
             playerRb = playerObj.GetComponent<Rigidbody2D>();
         }
 
-        sr.color = charge > 0 ? positiveColor : negativeColor;
+        if (sr != null)
+            sr.color = charge > 0 ? positiveColor : negativeColor;
         shootTimer = shootCooldown;
+    }
+
+    /// <summary>
+    /// Recibe daño de un proyectil reflejado por THEIA y delega la muerte a EnemyHealth.
+    /// </summary>
+    public void TakeReflectedDamage(int amount)
+    {
+        if (enemyHealth != null)
+        {
+            enemyHealth.TakeDamage(amount);
+        }
+        else
+        {
+            EnemyHealth.SpawnBurstParticles(transform.position, sr != null ? sr.color : Color.cyan, 18, 4.5f);
+            Destroy(gameObject);
+        }
     }
 
     void FixedUpdate()
@@ -58,12 +86,13 @@ public class EnemyEmisor : MonoBehaviour
         float dist = Vector2.Distance(transform.position, player.position);
         if (dist > chargeEffectRadius || dist < 0.1f) return;
 
-        float clampedR = Mathf.Max(dist, 0.7f);
+        float sqrClampedR = ElectroPhysicsUtility.SafeSqrDistance(dist, 0.7f, chargeEffectRadius);
+        float clampedR = Mathf.Sqrt(sqrClampedR);
         float q1 = charge;
         float q2 = playerCharge.GetCharge();
         float chargeProduct = q1 * q2;
 
-        float forceMag = chargeForceStrength * Mathf.Abs(chargeProduct) / (clampedR * clampedR);
+        float forceMag = chargeForceStrength * Mathf.Abs(chargeProduct) / sqrClampedR;
         forceMag = Mathf.Clamp(forceMag, 0.5f, 40f);
 
         Vector2 dirAwayFromPlayer = (transform.position - player.position).normalized;
@@ -71,23 +100,25 @@ public class EnemyEmisor : MonoBehaviour
 
         if (chargeProduct > 0)
         {
-            rb.AddForce(dirAwayFromPlayer * forceMag);
-            playerRb.AddForce(-dirAwayFromPlayer * forceMag);
+            Vector2 f = Vector2.ClampMagnitude(dirAwayFromPlayer * forceMag, 40f);
+            rb.AddForce(f);
+            EMForceAccumulator2D.ApplyForce(playerRb, -f);
             GameEvents.RaiseForceApplied(new CoulombForceData(
-                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, -dirAwayFromPlayer * forceMag, false));
+                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, -f, false));
         }
         else
         {
-            rb.AddForce(-dirAwayFromPlayer * forceMag);
-            playerRb.AddForce(dirAwayFromPlayer * forceMag);
+            Vector2 f = Vector2.ClampMagnitude(dirAwayFromPlayer * forceMag, 40f);
+            rb.AddForce(-f);
+            EMForceAccumulator2D.ApplyForce(playerRb, f);
             GameEvents.RaiseForceApplied(new CoulombForceData(
-                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, dirAwayFromPlayer * forceMag, true));
+                transform.position, player.position, q1, q2, clampedR, chargeForceStrength, f, true));
         }
     }
 
     void Update()
     {
-        if (player == null) return;
+        if (player == null || playerCharge == null) return;
 
         float dist = Vector2.Distance(transform.position, player.position);
         shootTimer -= Time.deltaTime;
@@ -119,6 +150,7 @@ public class EnemyEmisor : MonoBehaviour
 
     void Hover()
     {
+        if (rb == null) return;
         float hover = Mathf.Sin(Time.time * 2f) * 0.5f;
         rb.linearVelocity = new Vector2(
             Mathf.Sin(Time.time * 0.5f) * moveSpeed * 0.3f,
@@ -128,6 +160,7 @@ public class EnemyEmisor : MonoBehaviour
 
     void Retreat()
     {
+        if (rb == null || player == null) return;
         Vector2 dirAway = (transform.position - player.position).normalized;
         rb.linearVelocity = new Vector2(
             dirAway.x * moveSpeed,
@@ -141,30 +174,37 @@ public class EnemyEmisor : MonoBehaviour
 
         GameObject proj = new GameObject("EmisorProjectile");
         proj.transform.position = transform.position;
+        proj.layer = gameObject.layer;
 
         SpriteRenderer projSr = proj.AddComponent<SpriteRenderer>();
         projSr.sprite = sr != null ? sr.sprite : null;
         projSr.color = charge > 0 ?
-            new Color(0.3f, 0.6f, 1f, 0.8f) :
-            new Color(1f, 0.3f, 0.3f, 0.8f);
-        proj.transform.localScale = Vector3.one * 0.3f;
+            new Color(0.3f, 0.6f, 1f, 0.9f) :
+            new Color(1f, 0.3f, 0.3f, 0.9f);
+        if (sr != null)
+        {
+            projSr.sortingLayerID = sr.sortingLayerID;
+            projSr.sortingOrder = sr.sortingOrder + 2;
+        }
+        proj.transform.localScale = Vector3.one * 0.32f;
 
         Rigidbody2D projRb = proj.AddComponent<Rigidbody2D>();
-        projRb.gravityScale = 0.1f;
+        projRb.gravityScale = 0.05f;
+        projRb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
         CircleCollider2D projCol = proj.AddComponent<CircleCollider2D>();
         projCol.isTrigger = true;
-        projCol.radius = 0.15f;
+        projCol.radius = 0.42f;
 
         EmisorProjectile projScript = proj.AddComponent<EmisorProjectile>();
-        projScript.damage = projectileDamage;
+        projScript.damage = Mathf.Max(1, projectileDamage);
         projScript.charge = charge;
+        projScript.lifetime = 6f;
+        projScript.reflectedLifetime = 7f;
         projScript.SetOwner(gameObject);
 
         Vector2 dir = (player.position - transform.position).normalized;
         projRb.linearVelocity = dir * projectileSpeed;
-
-        Destroy(proj, 4f);
     }
 
     void UpdateVisual()

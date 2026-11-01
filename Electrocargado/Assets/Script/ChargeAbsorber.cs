@@ -48,9 +48,8 @@ public class ChargeAbsorber : MonoBehaviour
         if (!absorbModeActive) return;
 
         if (cam == null) cam = Camera.main;
-        if (cam == null) return;
-
-        Vector2 mouseWorld = cam.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+        if (!ElectroPhysicsUtility.TryScreenToWorldPoint2D(cam, Mouse.current.position.ReadValue(), out Vector2 mouseWorld))
+            return;
 
         if (Mouse.current.leftButton.isPressed)
             TryAbsorb(mouseWorld);

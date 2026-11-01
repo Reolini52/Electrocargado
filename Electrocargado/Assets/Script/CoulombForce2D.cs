@@ -194,8 +194,11 @@ public class CoulombForce2D : MonoBehaviour
             // Dirección unitaria colineal \hat{r} (saliente de la fuente hacia el objetivo)
             Vector2 rHat = rawDistance > 0.0001f ? (displacement / rawDistance) : Vector2.up;
 
-            // Clamping de seguridad en distancia mínima r_min para evitar singularidad 1/r^2 -> \infty
-            float clampedDistance = Mathf.Max(rawDistance, minSafeDistanceRMin);
+            // [Fase 3] Clamping del divisor r^2 con Mathf.Clamp: r ∈ [r_min, r_max]
+            // evita la singularidad 1/r^2 -> \infty (división por cero o valores ~0).
+            float maxR = Mathf.Max(interactionRadius, sourceNode.interactionRadius);
+            float sqrClampedDistance = ElectroPhysicsUtility.SafeSqrDistance(rawDistance, minSafeDistanceRMin, maxR);
+            float clampedDistance = Mathf.Sqrt(sqrClampedDistance);
 
             // Constante efectiva del par interactuante
             float ke = 0.5f * (coulombConstantKe + sourceNode.coulombConstantKe);
@@ -203,15 +206,14 @@ public class CoulombForce2D : MonoBehaviour
             // Ley de Coulomb Escalar con Signo: F = k_e * (q_1 * q_2) / r^2
             // Si q_1 * q_2 > 0 (mismo signo) -> Repulsión (+rHat, vectores colineales salientes)
             // Si q_1 * q_2 < 0 (signo opuesto) -> Atracción (-rHat, vectores colineales entrantes)
-            float signedForceScalar = ke * (qSource * qTarget) / (clampedDistance * clampedDistance);
+            float signedForceScalar = ke * (qSource * qTarget) / sqrClampedDistance;
 
-            // Clamping de seguridad en magnitud máxima de fuerza
-            float clampedForceScalar = Mathf.Clamp(signedForceScalar, -maxForceMagnitudeClamp, maxForceMagnitudeClamp);
-            Vector2 pairForceVector = rHat * clampedForceScalar;
+            // [Fase 3] Clamping de seguridad en magnitud máxima de fuerza del par (Vector2.ClampMagnitude)
+            Vector2 pairForceVector = Vector2.ClampMagnitude(rHat * signedForceScalar, maxForceMagnitudeClamp);
 
             netForceThisStep += pairForceVector;
 
-            float absMag = Mathf.Abs(clampedForceScalar);
+            float absMag = pairForceVector.magnitude;
             if (absMag > maxSingleForceMag)
             {
                 maxSingleForceMag = absMag;
@@ -233,12 +235,12 @@ public class CoulombForce2D : MonoBehaviour
         if (hadInteraction)
         {
             // Clamping global del vector neto resultante antes de inyectarlo al Rigidbody2D
-            if (netForceThisStep.sqrMagnitude > maxForceMagnitudeClamp * maxForceMagnitudeClamp)
-            {
-                netForceThisStep = netForceThisStep.normalized * maxForceMagnitudeClamp;
-            }
+            netForceThisStep = Vector2.ClampMagnitude(netForceThisStep, maxForceMagnitudeClamp);
 
-            cachedRb.AddForce(netForceThisStep, ForceMode2D.Force);
+            // [Fase 3] Se enruta por el acumulador EM: si THEIA tiene EMForceAccumulator2D, la suma
+            // de TODAS las fuentes (Coulomb + POLAROUS + Lorentz...) se limita una sola vez.
+            // Sin acumulador, equivale exactamente al rb.AddForce original.
+            EMForceAccumulator2D.ApplyForce(cachedRb, netForceThisStep);
 
             // Clamping de seguridad en velocidad máxima inducida para preservar el Game Feel
             if (cachedRb.linearVelocity.sqrMagnitude > maxInducedSpeedClamp * maxInducedSpeedClamp)
