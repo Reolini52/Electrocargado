@@ -133,6 +133,7 @@ public class GandalfNPC : MonoBehaviour
 
     // Cooldown para navegación suave con el Stick analógico del Gamepad
     private float gamepadNavCooldown = 0f;
+    private float retryCooldownTimer = 0f;
 
     // Reloj de presentación (Typewriter + Fade-In en tiempo no escalado, no afecta la lógica)
     private float questionPresentationElapsed = 0f;
@@ -171,9 +172,24 @@ public class GandalfNPC : MonoBehaviour
         ApplyFontSizesToTMP();
     }
 
+    private void OnDestroy()
+    {
+        if (isActive)
+        {
+            isGandalfActive = false;
+            Time.timeScale = 1f;
+        }
+    }
+
     protected virtual void Update()
     {
         if (player == null || trialComplete) return;
+
+        if (retryCooldownTimer > 0f)
+        {
+            retryCooldownTimer -= Time.unscaledDeltaTime;
+            return;
+        }
 
         float dist = Vector2.Distance(transform.position, player.position);
 
@@ -439,8 +455,8 @@ public class GandalfNPC : MonoBehaviour
 
         if (correct)
             correctCount++;
-        else
-            playerHealth?.TakeDamage(failDamage);
+        else if (playerHealth != null && playerHealth.currentHealth > failDamage)
+            playerHealth.TakeDamage(failDamage);
 
         GameEvents.RaiseQuizQuestionAnswered(currentQuestion, correct, hintMsg);
     }
@@ -483,18 +499,20 @@ public class GandalfNPC : MonoBehaviour
 
             if (!string.IsNullOrEmpty(nextSceneName))
             {
-                string targetScene = nextSceneName == "Level2" ? "Level 2" :
-                                     (nextSceneName == "Level3" || nextSceneName == "Level 3") ? "Level 4" :
-                                     nextSceneName == "Level4" ? "Level 4" : nextSceneName;
+                string trimmed = nextSceneName.Trim();
+                string targetScene =
+                    (trimmed == "Level1" || trimmed == "Nivel 1") ? "Level 1" :
+                    (trimmed == "Level2" || trimmed == "Nivel 2") ? "Level 2" :
+                    (trimmed == "Level3" || trimmed == "Nivel 3") ? "Level 3" :
+                    (trimmed == "Level4" || trimmed == "Nivel 4" || trimmed == "Boss") ? "Level 4" :
+                    trimmed;
                 SceneManager.LoadScene(targetScene);
             }
         }
         else
         {
-            int missing = requiredToPass - correctCount;
-            for (int i = 0; i < missing; i++)
-                playerHealth?.TakeDamage(failDamage);
-
+            // No aplicar daño letal duplicado al cerrar el resumen para evitar recargar la escena innecesariamente;
+            // permitir que el jugador re-experimente en el mismo nivel y vuelva a intentar el examen.
             if (spawnPoints != null && enemyPrefabs != null && enemyPrefabs.Length > 0)
             {
                 foreach (Transform spawn in spawnPoints)
@@ -510,6 +528,7 @@ public class GandalfNPC : MonoBehaviour
             showingSummary = false;
             isGandalfActive = false;
             hasTriggered = false;
+            retryCooldownTimer = 3.0f;
             currentQuestion = 0;
             correctCount = 0;
             selectedOption = 0;

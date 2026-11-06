@@ -8,9 +8,13 @@ public class PauseMenu : MonoBehaviour
     private GUIStyle titleStyle;
     private GUIStyle buttonStyle;
     public bool IsPaused() => isPaused;
+
     void Update()
     {
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        bool escapePressed = Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+        bool gamepadPausePressed = Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame;
+
+        if (escapePressed || gamepadPausePressed)
             TogglePause();
     }
 
@@ -51,6 +55,7 @@ public class PauseMenu : MonoBehaviour
             "Restart Level", buttonStyle))
         {
             Time.timeScale = 1f;
+            GandalfNPC.isGandalfActive = false;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
@@ -58,6 +63,7 @@ public class PauseMenu : MonoBehaviour
             "Main Menu", buttonStyle))
         {
             Time.timeScale = 1f;
+            GandalfNPC.isGandalfActive = false;
             SceneManager.LoadScene("Main Menu");
         }
     }

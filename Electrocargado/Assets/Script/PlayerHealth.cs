@@ -28,6 +28,9 @@ public class PlayerHealth : MonoBehaviour
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
+        if (sr == null)
+            sr = GetComponentInChildren<SpriteRenderer>();
+
         currentHealth = maxHealth;
 
         // If first time load, initialize resets
@@ -40,12 +43,15 @@ public class PlayerHealth : MonoBehaviour
 
     void Update()
     {
-        if (Keyboard.current.rKey.wasPressedThisFrame && currentResets > 0)
-            ResetLevel();
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.rKey.wasPressedThisFrame && currentResets > 0)
+                ResetLevel();
 
-        // Test damage
-        if (Keyboard.current.tKey.wasPressedThisFrame)
-            TakeDamage(1);
+            // Test damage
+            if (Keyboard.current.tKey.wasPressedThisFrame)
+                TakeDamage(1);
+        }
 
         if (isInvincible)
         {
@@ -54,21 +60,23 @@ public class PlayerHealth : MonoBehaviour
 
             if (flashTimer <= 0f)
             {
-                sr.enabled = !sr.enabled;
+                if (sr != null)
+                    sr.enabled = !sr.enabled;
                 flashTimer = flashInterval;
             }
 
             if (invincibilityTimer <= 0f)
             {
                 isInvincible = false;
-                sr.enabled = true;
+                if (sr != null)
+                    sr.enabled = true;
             }
         }
     }
 
     public void TakeDamage(int amount)
     {
-        if (isInvincible) return;
+        if (isInvincible || amount <= 0) return;
 
         currentHealth -= amount;
         isInvincible = true;
@@ -91,6 +99,8 @@ public class PlayerHealth : MonoBehaviour
         }
 
         currentHealth = maxHealth;
+        Time.timeScale = 1f;
+        GandalfNPC.isGandalfActive = false;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
@@ -98,6 +108,8 @@ public class PlayerHealth : MonoBehaviour
     {
         Debug.Log("GAME OVER");
         savedResets = maxResets; // reset for next playthrough
+        Time.timeScale = 1f;
+        GandalfNPC.isGandalfActive = false;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 

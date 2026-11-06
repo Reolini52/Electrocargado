@@ -23,8 +23,9 @@ public class PlayerMovement2D : PlayerController
         residualCapacitor = GetComponent<CargaResidual>();
     }
 
-    private void OnEnable()
+    protected override void OnEnable()
     {
+        base.OnEnable();
         GameEvents.OnChargeChanged += HandleChargeChanged;
     }
 
